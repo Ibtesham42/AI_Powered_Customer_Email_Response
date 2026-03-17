@@ -15,16 +15,33 @@ class LLMClient:
 
     def generate(self, prompt):
 
-        response = self.client.chat.completions.create(
+        stream = self.client.chat.completions.create(
 
             model=self.model,
 
             messages=[
+                {"role": "system", "content": "You are a professional customer support assistant."},
                 {"role": "user", "content": prompt}
             ],
 
             temperature=0.2,
-            max_tokens=500
+            max_tokens=500,
+
+            stream=True
         )
 
-        return response.choices[0].message.content
+        full_response = ""
+
+        for chunk in stream:
+
+            if chunk.choices[0].delta.content:
+
+                token = chunk.choices[0].delta.content
+
+                print(token, end="", flush=True)
+
+                full_response += token
+
+        print("\n")
+
+        return full_response
