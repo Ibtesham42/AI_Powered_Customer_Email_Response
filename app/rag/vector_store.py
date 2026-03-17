@@ -44,7 +44,7 @@ class VectorStore:
 
             dimension = embeddings_np.shape[1]
 
-            self.index = faiss.IndexFlatL2(dimension)
+            self.index = faiss.IndexFlatIP(dimension)
 
             self.index.add(embeddings_np)
 
