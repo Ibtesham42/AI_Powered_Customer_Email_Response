@@ -9,6 +9,7 @@ def chunk_documents(documents):
     )
 
     chunks = []
+    seen_chunks = set()
 
     for doc in documents:
 
@@ -16,9 +17,18 @@ def chunk_documents(documents):
 
         for chunk in split_text:
 
-            chunks.append({
-                "text": chunk,
-                "metadata": doc["metadata"]
-            })
+            clean_chunk = chunk.strip()
+
+            # duplicate check
+            if clean_chunk not in seen_chunks:
+
+                chunks.append({
+                    "text": clean_chunk,
+                    "metadata": doc["metadata"]
+                })
+
+                seen_chunks.add(clean_chunk)
+
+    print("Total unique chunks:", len(chunks))
 
     return chunks

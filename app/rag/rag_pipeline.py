@@ -7,15 +7,20 @@ import torch
 
 class RAGPipeline:
 
-    def __init__(self):
+    def __init__(self, user_id):
 
-        print("Loading RAG system...")
+        print("Loading RAG system for:", user_id)
 
         self.embedding_model = EmbeddingModel()
 
-        self.index = faiss.read_index("vector_store/faiss_index")
+        vector_path = f"data/users/{user_id}/vector_store"
 
-        with open("vector_store/docs.json") as f:
+        index_path = f"{vector_path}/faiss_index"
+        docs_path = f"{vector_path}/docs.json"
+
+        self.index = faiss.read_index(index_path)
+
+        with open(docs_path) as f:
             self.documents = json.load(f)
 
         self.embeddings = torch.tensor(

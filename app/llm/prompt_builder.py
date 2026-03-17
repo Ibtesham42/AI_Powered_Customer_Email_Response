@@ -35,7 +35,9 @@ Subject:
 A clear and relevant subject line.
 
 Greeting:
-Politely greet the customer (e.g., "Dear Customer," or "Hello,")
+Politely greet the customer.
+If the customer's name is available in the email, use it.
+Otherwise use "Dear Customer".
 
 Body:
 • Acknowledge the customer's issue  

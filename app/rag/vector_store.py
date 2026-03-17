@@ -1,38 +1,58 @@
 import faiss
-import numpy as np
 import json
+import os
 from pathlib import Path
 
 
 class VectorStore:
 
-    def __init__(self):
+    def __init__(self, user_id):
+
+        self.base_path = f"data/users/{user_id}/vector_store"
+
+        self.index_path = f"{self.base_path}/faiss_index"
+        self.docs_path = f"{self.base_path}/docs.json"
 
         self.index = None
         self.documents = []
 
-    def build(self, embeddings, docs):
 
-        dimension = embeddings.shape[1]
+    def build_or_update(self, embeddings, docs):
 
-        self.index = faiss.IndexFlatL2(dimension)
+        Path(self.base_path).mkdir(parents=True, exist_ok=True)
 
-        self.index.add(embeddings.cpu().numpy())
+        embeddings_np = embeddings.cpu().numpy()
 
-        self.documents = docs
+        if os.path.exists(self.index_path):
 
-        Path("vector_store").mkdir(exist_ok=True)
+            print("Loading existing vector store...")
 
-        faiss.write_index(self.index, "vector_store/faiss_index")
+            self.index = faiss.read_index(self.index_path)
 
-        with open("vector_store/docs.json", "w") as f:
-            json.dump(docs, f)
+            with open(self.docs_path) as f:
+                self.documents = json.load(f)
 
-        print("Vector store saved")
+            self.index.add(embeddings_np)
 
-    def load(self):
+            self.documents.extend(docs)
 
-        self.index = faiss.read_index("vector_store/faiss_index")
+            print("Added", len(docs), "new documents")
 
-        with open("vector_store/docs.json") as f:
-            self.documents = json.load(f)
+        else:
+
+            print("Creating new vector store...")
+
+            dimension = embeddings_np.shape[1]
+
+            self.index = faiss.IndexFlatL2(dimension)
+
+            self.index.add(embeddings_np)
+
+            self.documents = docs
+
+        faiss.write_index(self.index, self.index_path)
+
+        with open(self.docs_path, "w") as f:
+            json.dump(self.documents, f)
+
+        print("Total documents:", len(self.documents))

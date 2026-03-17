@@ -2,7 +2,6 @@ import streamlit as st
 import sys
 import os
 
-# project path fix
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 from app.email.email_responder import EmailResponder
@@ -18,12 +17,36 @@ st.title("AI Customer Email Response System")
 st.write("Generate AI-powered customer support replies using RAG + LLM")
 
 
+# Detect users automatically
+users_path = "data/users"
+
+users = []
+
+if os.path.exists(users_path):
+
+    users = os.listdir(users_path)
+
+
+if len(users) == 0:
+
+    st.warning("No users found. Please create user workspace first.")
+    st.stop()
+
+
+# User selector
+user_id = st.selectbox(
+    "Select Company / User",
+    users
+)
+
+
 @st.cache_resource
-def load_system():
-    return EmailResponder()
+def load_system(user):
+
+    return EmailResponder(user)
 
 
-responder = load_system()
+responder = load_system(user_id)
 
 
 customer_email = st.text_area(
@@ -37,6 +60,7 @@ if st.button("Generate Response"):
 
     if customer_email.strip() == "":
         st.warning("Please enter a customer email.")
+
     else:
 
         with st.spinner("Generating response..."):
