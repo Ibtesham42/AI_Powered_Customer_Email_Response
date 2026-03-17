@@ -16,3 +16,5 @@ accelerate
 bitsandbytes
 pypdf
 python-docx
+beautifulsoup4
+lxml
