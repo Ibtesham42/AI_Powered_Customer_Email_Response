@@ -1,0 +1,16 @@
+pandas
+python-dotenv
+sentence-transformers
+faiss-cpu
+torch
+groq
+openai
+google-generativeai
+tqdm
+nltk
+
+langchain-text-splitters
+numpy
+transformers
+accelerate
+bitsandbytes

@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Project data
+data/
+
+# Vector database / embeddings
+vector_store/
+
+# Local environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
