@@ -212,7 +212,7 @@ venv/
 .venv/
 
 # # Project data
-# data/
+data/
 
 # Vector database / embeddings
 vector_store/
