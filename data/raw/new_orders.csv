@@ -1,6 +1,0 @@
-order_id,customer_email,product,payment_status,invoice_number,delivery_status
-1001,rahul.sharma@gmail.com,Wireless Headphones,Paid,INV-1001,Shipped
-1002,priya.singh@gmail.com,Smart Watch,Pending,INV-1002,Processing
-1003,ankit.verma@gmail.com,Laptop Stand,Paid,INV-1003,Delivered
-1004,neha.patel@gmail.com,Noise Cancelling Headphones,Paid,INV-1004,Processing
-1005,aman.khan@gmail.com,Bluetooth Speaker,Refund Initiated,INV-1005,Returned
