@@ -1,0 +1,32 @@
+[
+  {
+    "ticket_id": "TCK-201",
+    "customer_email": "rahul.sharma@gmail.com",
+    "issue": "Order delay",
+    "status": "Open"
+  },
+  {
+    "ticket_id": "TCK-202",
+    "customer_email": "priya.singh@gmail.com",
+    "issue": "Payment deducted but order not confirmed",
+    "status": "Investigating"
+  },
+  {
+    "ticket_id": "TCK-203",
+    "customer_email": "ankit.verma@gmail.com",
+    "issue": "Invoice request",
+    "status": "Resolved"
+  },
+  {
+    "ticket_id": "TCK-204",
+    "customer_email": "aman.khan@gmail.com",
+    "issue": "Refund not received",
+    "status": "Pending"
+  },
+  {
+    "ticket_id": "TCK-205",
+    "customer_email": "neha.patel@gmail.com",
+    "issue": "Warranty information request",
+    "status": "Closed"
+  }
+]
