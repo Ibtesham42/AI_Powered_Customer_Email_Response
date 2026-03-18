@@ -24,7 +24,7 @@ class LLMClient:
                 {"role": "user", "content": prompt}
             ],
 
-            temperature=0.2,
+            temperature=0.3,
             max_tokens=500,
 
             stream=True
