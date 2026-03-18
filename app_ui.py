@@ -14,7 +14,6 @@ EMAIL = os.getenv("EMAIL_USER")
 PASSWORD = os.getenv("EMAIL_PASSWORD")
 USER_ID = os.getenv("USER_ID")
 
-
 st.set_page_config(page_title="AI Email Support", layout="wide")
 
 st.title("AI Customer Support Admin Panel")
@@ -23,26 +22,20 @@ st.title("AI Customer Support Admin Panel")
 # Initialize systems
 
 if "listener" not in st.session_state:
-
     st.session_state.listener = EmailListener(
         host="imap.gmail.com",
         email_user=EMAIL,
         password=PASSWORD
     )
 
-
 if "responder" not in st.session_state:
-
     st.session_state.responder = EmailResponder(user_id=USER_ID)
-
 
 listener = st.session_state.listener
 responder = st.session_state.responder
 
 
-
-#  Auto read new email
-
+#  Fetch Emails
 
 if st.button("Fetch New Emails"):
 
@@ -50,29 +43,31 @@ if st.button("Fetch New Emails"):
 
     if emails:
 
-        email_data = emails[0]
+        for email_data in emails:
 
-        customer_email = f"""
+            customer_email = f"""
 Subject: {email_data['subject']}
 
 {email_data['body']}
 """
 
-        ai_reply = responder.generate_reply(customer_email)
+            ai_reply = responder.generate_reply(customer_email)
 
-        add_to_queue(email_data, ai_reply)
+            add_to_queue(email_data, ai_reply)
 
-        st.success("Email added to review queue")
+        st.success(f"{len(emails)} emails added to queue")
 
+    else:
+        st.warning("No new emails found")
 
-
-#  Admin Review Queue
 
 
 st.header("Pending Email Replies")
 
 queue = load_queue()
 
+# latest first
+queue = list(reversed(queue))
 
 for i, item in enumerate(queue):
 
@@ -106,6 +101,9 @@ for i, item in enumerate(queue):
                 edited_reply
             )
 
-            update_queue(i, edited_reply)
+            # fix index
+            real_index = len(queue) - 1 - i
+
+            update_queue(real_index, edited_reply)
 
             st.success("Email sent successfully")

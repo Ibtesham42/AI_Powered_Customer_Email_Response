@@ -10,7 +10,7 @@ from app.email.email_responder import EmailResponder
 EMAIL = "ibteshamakhtar1@gmail.com"
 PASSWORD = "jttz xupm qlzb ztdv"
 
-USER_ID = "companyA"
+USER_ID = "DummyData"
 
 
 print("Starting AI Email Worker...")

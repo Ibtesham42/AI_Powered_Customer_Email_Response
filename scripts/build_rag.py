@@ -17,7 +17,7 @@ def build(user_id):
 
     docs_path = workspace.processed() + "/documents.json"
 
-    with open(docs_path) as f:
+    with open(docs_path, encoding="utf-8") as f:
         docs = json.load(f)
 
     chunks = chunk_documents(docs)

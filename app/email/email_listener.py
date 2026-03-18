@@ -36,8 +36,12 @@ class EmailListener:
 
         emails = []
 
+        
+
+        
+
         # latest email only
-        email_ids = email_ids[-1:]
+        email_ids = list(reversed(email_ids))
 
         for e_id in email_ids:
 
