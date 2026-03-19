@@ -15,17 +15,17 @@ from docx import Document
 from app.utils.workspace_manager import WorkspaceManager
 
 
-# ------------------------------
+
 # GLOBAL
-# ------------------------------
+
 
 documents = []
-MAX_TEXT_LENGTH = 2000   # prevent huge chunks
+MAX_TEXT_LENGTH = 2000
 
 
-# ------------------------------
-# CLEANING FUNCTIONS
-# ------------------------------
+
+# CLEANING FUNCTIONS (UPGRADED)
+
 
 def clean_html(text):
 
@@ -34,27 +34,58 @@ def clean_html(text):
 
     soup = BeautifulSoup(str(text), "html.parser")
 
-    # remove script/style
     for tag in soup(["script", "style"]):
         tag.decompose()
 
-    text = soup.get_text(separator=" ")
-
-    return text
+    return soup.get_text(separator=" ")
 
 
 def remove_sensitive(text):
 
     patterns = [
         r"password\s*[:=]\s*\S+",
-        r"pass\s*[:=]\s*\S+",
         r"ftp\s*[:=]\s*\S+",
-        r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",  # emails
-        r"https?://\S+",  # URLs
+        r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+        r"https?://\S+",
     ]
 
     for p in patterns:
         text = re.sub(p, "[REDACTED]", text, flags=re.I)
+
+    return text
+
+
+#
+# PDF / NOISE CLEANING
+
+
+def clean_noise(text):
+
+    text = str(text)
+
+    # remove hashes / ids
+    text = re.sub(r'\b[a-f0-9]{6,}\b', '', text)
+
+    # remove repeated words
+    text = re.sub(r'\b(\w+)( \1\b)+', r'\1', text)
+
+    # remove single letters
+    text = re.sub(r'\b[a-zA-Z]\b', '', text)
+
+    # remove numbers only
+    text = re.sub(r'\b\d+\b', '', text)
+
+    # remove system junk
+    junk_words = [
+        "ticketid", "adminr", "userid", "contactid",
+        "merged", "_ticket_id", "depart", "priority",
+        "status", "service", "ticketkey", "project_id",
+        "clientread", "adminread", "assigned",
+        "staff_id", "replying"
+    ]
+
+    for word in junk_words:
+        text = re.sub(word, '', text, flags=re.IGNORECASE)
 
     return text
 
@@ -64,7 +95,6 @@ def normalize_value(value):
     if pd.isna(value):
         return "NULL"
 
-    # numbers safe convert
     if isinstance(value, float):
         return str(round(value, 2))
 
@@ -75,21 +105,46 @@ def clean_text(text):
 
     text = clean_html(text)
     text = remove_sensitive(text)
+    text = clean_noise(text)
 
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    text = text.strip()
-
-    # limit size (important for RAG)
     if len(text) > MAX_TEXT_LENGTH:
         text = text[:MAX_TEXT_LENGTH]
 
     return text
 
 
-# ------------------------------
+
+# CHUNKING + FILTERING 
+
+
+def chunk_text(text):
+
+    chunks = re.split(r'\n{2,}|\.\s', text)
+
+    chunks = [c.strip() for c in chunks if len(c) > 40]
+
+    return chunks
+
+
+def filter_meaningful_chunks(chunks):
+
+    keywords = [
+        "please", "issue", "email", "request",
+        "help", "need", "confirm", "delay",
+        "add", "sent"
+    ]
+
+    return [
+        c for c in chunks
+        if any(k in c.lower() for k in keywords)
+    ]
+
+
+
 # ADD DOCUMENT SAFE
-# ------------------------------
+
 
 def add_document(text, metadata):
 
@@ -103,63 +158,69 @@ def add_document(text, metadata):
     })
 
 
-# ------------------------------
-# CSV PROCESSOR (IMPROVED)
-# ------------------------------
+
+# CSV PROCESSOR (UPGRADED)
+
 
 def process_csv(file_path):
 
     df = pd.read_csv(file_path)
-
-    df = df.fillna("NULL")   # handle null properly
+    df = df.fillna("NULL")
 
     for _, row in df.iterrows():
 
         text_parts = []
 
         for col in df.columns:
-
             value = normalize_value(row[col])
-
             text_parts.append(f"{col}: {value}")
 
         text = "\n".join(text_parts)
 
         text = clean_text(text)
 
-        add_document(text, {
-            "source": "csv",
-            "file": os.path.basename(file_path)
-        })
+        chunks = chunk_text(text)
+        chunks = filter_meaningful_chunks(chunks)
+
+        for c in chunks:
+            add_document(c, {
+                "source": "csv",
+                "file": os.path.basename(file_path)
+            })
 
 
-# ------------------------------
-# PDF PROCESSOR (SAFE)
-# ------------------------------
+
+# PDF PROCESSOR 
+
 
 def process_pdf(file_path):
 
     reader = PdfReader(file_path)
 
-    for i, page in enumerate(reader.pages):
+    full_text = ""
 
+    for page in reader.pages:
         try:
-            text = page.extract_text() or ""
+            full_text += page.extract_text() or ""
         except:
-            text = ""
+            continue
 
-        text = clean_text(text)
+    full_text = clean_text(full_text)
 
-        add_document(text, {
+    chunks = chunk_text(full_text)
+    chunks = filter_meaningful_chunks(chunks)
+
+    for i, c in enumerate(chunks):
+        add_document(c, {
             "source": "pdf",
             "file": os.path.basename(file_path),
-            "page": i
+            "chunk": i
         })
 
 
-# ------------------------------
+
 # TXT PROCESSOR
-# ------------------------------
+
 
 def process_txt(file_path):
 
@@ -168,15 +229,18 @@ def process_txt(file_path):
 
     text = clean_text(text)
 
-    add_document(text, {
-        "source": "txt",
-        "file": os.path.basename(file_path)
-    })
+    chunks = chunk_text(text)
+
+    for c in chunks:
+        add_document(c, {
+            "source": "txt",
+            "file": os.path.basename(file_path)
+        })
 
 
-# ------------------------------
+
 # DOCX PROCESSOR
-# ------------------------------
+
 
 def process_docx(file_path):
 
@@ -186,15 +250,18 @@ def process_docx(file_path):
 
     text = clean_text(text)
 
-    add_document(text, {
-        "source": "docx",
-        "file": os.path.basename(file_path)
-    })
+    chunks = chunk_text(text)
+
+    for c in chunks:
+        add_document(c, {
+            "source": "docx",
+            "file": os.path.basename(file_path)
+        })
 
 
-# ------------------------------
+
 # JSON PROCESSOR
-# ------------------------------
+
 
 def process_json(file_path):
 
@@ -207,21 +274,24 @@ def process_json(file_path):
 
         text = clean_text(raw_text)
 
-        add_document(text, {
-            "source": "json",
-            "file": os.path.basename(file_path),
-            **item.get("metadata", {})
-        })
+        chunks = chunk_text(text)
+
+        for c in chunks:
+            add_document(c, {
+                "source": "json",
+                "file": os.path.basename(file_path),
+                **item.get("metadata", {})
+            })
 
 
-# ------------------------------
+
 # MAIN
-# ------------------------------
+
 
 def preprocess(user_id):
 
     global documents
-    documents = []   # IMPORTANT (multi-user safe)
+    documents = []
 
     workspace = WorkspaceManager(user_id)
 
@@ -232,7 +302,7 @@ def preprocess(user_id):
 
     files = os.listdir(RAW_FOLDER)
 
-    seen_texts = set()   # deduplication
+    seen_texts = set()
 
     for file in files:
 
@@ -255,9 +325,9 @@ def preprocess(user_id):
         elif file.endswith(".docx"):
             process_docx(path)
 
-    # ------------------------------
+    
     # REMOVE DUPLICATES
-    # ------------------------------
+    
 
     unique_docs = []
 
@@ -272,9 +342,9 @@ def preprocess(user_id):
     print("Total documents created:", len(unique_docs))
 
 
-# ------------------------------
+
 # ENTRY POINT
-# ------------------------------
+
 
 if __name__ == "__main__":
 

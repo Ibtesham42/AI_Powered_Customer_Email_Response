@@ -21,6 +21,7 @@ class EmbeddingModel:
             texts,
             batch_size=32,
             convert_to_tensor=True,
+            normalize_embeddings=True,
             show_progress_bar=True
         )
 

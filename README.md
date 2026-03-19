@@ -121,6 +121,15 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+Make Sure you have cuda 12 in ur windows installed
+if not visit this youtube link https://youtu.be/5FCLcWJZEqo?si=9RKKjPQ1ufTd9Q3y
+for reference , follow the process and install CUDA(GPU) 12 on ur PC
+
+
+Then only run below code -->
+
+
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 
 ---
 ## This Steps Are for initial building from root 
@@ -128,6 +137,9 @@ pip install -r requirements.txt
 ##  Data Preparation (RAG Setup)
 
 ### Step 1: Add Data
+
+Create Folder Data inside Data create one folder user then again one folder <folder_name> inside again create raw folder 
+Remember <folder_name>  this wil be your --user_id to run in code
 
 Place your company data inside:
 
@@ -140,7 +152,7 @@ Example:
 ```
 data/users/companyA/raw/
 ```
-
+here companyA is ur --user_id
 ---
 
 ### Step 2: Run Preprocessing
@@ -162,7 +174,8 @@ python scripts/build_rag.py --user_id companyA
 ##  Run Email Automation System (Admin Panel)
 
 ```bash
- streamlit run email_streamlit_ui.py
+
+ python -m streamlit run email_streamlit_ui.py
 ```
 
 ### Features:
@@ -181,7 +194,7 @@ python scripts/build_rag.py --user_id companyA
 ##  Run Chat Interface (Customer Simulation)
 
 ```bash
-streamlit run chat_app.py
+python -m streamlit run chat_app.py
 
 ```
 
