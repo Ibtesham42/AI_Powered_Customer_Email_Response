@@ -1,0 +1,36 @@
+import os
+
+# Base folder
+base = "backend"
+
+# Folder structure
+folders = [
+    "backend",
+    "backend/models",
+    "backend/routes",
+    "backend/auth",
+]
+
+# Files to create
+files = [
+    "backend/main.py",
+    "backend/database.py",
+    "backend/models/user.py",
+    "backend/models/company.py",
+    "backend/routes/auth.py",
+    "backend/routes/email.py",
+    "backend/routes/ai.py",
+    "backend/auth/hashing.py",
+    "backend/auth/jwt_handler.py",
+]
+
+# Create folders
+for folder in folders:
+    os.makedirs(folder, exist_ok=True)
+
+# Create files
+for file in files:
+    with open(file, "w") as f:
+        f.write("")  # empty file
+
+print("✅ Backend structure created successfully!")
