@@ -7,13 +7,13 @@ import torch
 
 class RAGPipeline:
 
-    def __init__(self, user_id):
+    def __init__(self, company_id):
 
-        print("Loading RAG system for:", user_id)
+        print("Loading RAG system for:", company_id)
 
         self.embedding_model = EmbeddingModel()
 
-        vector_path = f"data/users/{user_id}/vector_store"
+        vector_path = f"data/users/LabData/vector_store"
 
         index_path = f"{vector_path}/faiss_index"
         docs_path = f"{vector_path}/docs.json"
@@ -41,3 +41,13 @@ class RAGPipeline:
         results = self.retriever.retrieve(query, k=5)
 
         return results
+    
+def get_rag_context(query, company_id):
+
+    rag = RAGPipeline(company_id)
+
+    docs = rag.retrieve(query)
+
+    context = "\n".join(docs)
+
+    return context

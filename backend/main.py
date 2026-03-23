@@ -8,6 +8,8 @@ from backend.models.email import Email
 from backend.routes import auth, protected, email
 from backend.routes import ai
 from backend.routes import dashboard
+from backend.routes import data
+
 
 
 
@@ -27,6 +29,7 @@ app.include_router(protected.router, prefix="/user", tags=["User"])
 app.include_router(email.router, prefix="/email", tags=["Email"])
 app.include_router(ai.router, prefix="/ai", tags=["AI"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(data.router, prefix="/data")
 
 
 # Root route

@@ -2,50 +2,95 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import time
 
+from app.email.email_queue import get_queue, clear_queue
+from backend.database import SessionLocal
+from backend.models.email import Email
+from backend.services.ai_service import generate_email_reply
 from app.email.email_listener import EmailListener
-from app.email.email_responder import EmailResponder
+from app.utils.config import Config
+from app.email.email_queue import add_to_queue
 
 
-EMAIL = "ibteshamakhtar1@gmail.com"
-PASSWORD = "jttz xupm qlzb ztdv"
-
-USER_ID = "DummyData"
+print("Starting AI Worker...")
 
 
-print("Starting AI Email Worker...")
+def fetch_emails(db):
+
+    listener = EmailListener(
+        host="imap.gmail.com",
+        email_user=Config.EMAIL_USER,
+        password=Config.EMAIL_PASS
+    )
+
+    emails = listener.fetch_unread_emails()
+
+    for e in emails:
+
+        new_email = Email(
+            subject=e["subject"],
+            body=e["body"],
+            company_id=1,   # abhi fixed (later dynamic)
+            status="NEW"
+        )
+
+        db.add(new_email)
+        db.commit()
+        db.refresh(new_email)
+
+        add_to_queue(new_email.id, 1)
+
+        print("New email fetched:", e["subject"])
 
 
-listener = EmailListener(
-    host="imap.gmail.com",
-    email_user=EMAIL,
-    password=PASSWORD
-)
+def process_queue():
 
-# pass user_id here
-responder = EmailResponder(user_id=USER_ID)
+    db = SessionLocal()
+
+    queue = get_queue()
+
+    if not queue:
+        return
+
+    print("Processing:", len(queue))
+
+    for item in queue:
+
+        email = db.query(Email).filter(
+            Email.id == item["email_id"]
+        ).first()
+
+        if not email:
+            continue
+
+        #  AI reply
+        reply = generate_email_reply(
+            email.body,
+            item["company_id"]
+        )
+
+        email.ai_reply = reply
+        email.status = "AI_GENERATED"
+
+        db.commit()
+
+    clear_queue()
+    db.close()
 
 
-emails = listener.fetch_unread_emails()
+if __name__ == "__main__":
 
+    while True:
 
-for e in emails:
+        db = SessionLocal()
 
-    customer_email = f"""
-Subject: {e['subject']}
+        #  FETCH EMAILS
+        fetch_emails(db)
 
-{e['body']}
-"""
+        db.close()
 
-    print("\nCustomer Email Received:\n")
-    print(customer_email)
+        #  PROCESS AI
+        process_queue()
 
-    print("\nGenerating AI response...\n")
-
-    reply = responder.generate_reply(customer_email)
-
-    print("AI Response:\n")
-
-    print(reply)
-
-    print("\n" + "="*50)
+        time.sleep(10)

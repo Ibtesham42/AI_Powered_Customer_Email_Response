@@ -11,3 +11,6 @@ class Config:
 
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
     MODEL_NAME = os.getenv("MODEL_NAME", "llama3-70b-8192")
+
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASS = os.getenv("EMAIL_PASS")
