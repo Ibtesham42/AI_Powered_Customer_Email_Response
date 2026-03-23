@@ -138,7 +138,7 @@ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu12
 
 ### Step 1: Add Data
 
-Create Folder Data inside Data create one folder user then again one folder <folder_name> inside again create raw folder 
+Create Folder Data inside Data create one folder users then again one folder <folder_name> inside again create raw folder 
 Remember <folder_name>  this wil be your --user_id to run in code
 
 Place your company data inside:
