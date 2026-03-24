@@ -1,7 +1,9 @@
+
 import imaplib
 import email
 from email.header import decode_header
 from bs4 import BeautifulSoup
+import re
 
 
 class EmailListener:
@@ -36,11 +38,7 @@ class EmailListener:
 
         emails = []
 
-        
-
-        
-
-        # latest email only
+        # latest first
         email_ids = list(reversed(email_ids))
 
         for e_id in email_ids:
@@ -51,13 +49,21 @@ class EmailListener:
 
             msg = email.message_from_bytes(raw_email)
 
+            # -------- SUBJECT --------
             subject, encoding = decode_header(msg["Subject"])[0]
 
             if isinstance(subject, bytes):
                 subject = subject.decode(encoding if encoding else "utf-8")
 
-            sender = msg.get("From")
+            # -------- SENDER FIX --------
+            raw_sender = msg.get("From")
 
+            match = re.search(r"<(.+?)>", raw_sender)
+            sender = match.group(1) if match else raw_sender
+
+            print("Extracted sender:", sender)  # DEBUG
+
+            # -------- BODY --------
             body = ""
 
             if msg.is_multipart():
@@ -80,12 +86,23 @@ class EmailListener:
 
                 body = msg.get_payload(decode=True).decode(errors="ignore")
 
+            # -------- THREAD DATA --------
+            message_id = msg.get("Message-ID")
+            in_reply_to = msg.get("In-Reply-To")
+
+            print("Message-ID:", message_id)
+            print("In-Reply-To:", in_reply_to)
+
+            # mark as seen
             self.mail.store(e_id, '+FLAGS', '\\Seen')
 
             emails.append({
                 "subject": subject,
                 "sender": sender,
-                "body": body
+                "body": body,
+                "message_id": message_id,
+                "in_reply_to": in_reply_to   
             })
 
         return emails
+

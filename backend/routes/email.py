@@ -13,20 +13,16 @@ from app.utils.config import Config
 router = APIRouter()
 
 
-# =========================
-# GET ALL EMAILS
-# =========================
+# ---------------- GET ALL ----------------
 @router.get("/all")
 def get_emails(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     return db.query(Email).filter(
         Email.company_id == user["company_id"]
-    ).all()
+    ).order_by(Email.id.desc()).all()
 
 
-# =========================
-# CREATE EMAIL (Manual/Test)
-# =========================
+# ---------------- CREATE ----------------
 @router.post("/create")
 def create_email(subject: str, body: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
 
@@ -41,15 +37,13 @@ def create_email(subject: str, body: str, user=Depends(get_current_user), db: Se
     db.commit()
     db.refresh(email)
 
-    # add to queue for AI processing
+    # queue for AI
     add_to_queue(email.id, user["company_id"])
 
     return {"message": "Email created", "id": email.id}
 
 
-# =========================
-# GENERATE AI REPLY
-# =========================
+# ---------------- GENERATE AI ----------------
 @router.post("/generate-reply/{email_id}")
 def generate_reply(email_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
 
@@ -63,22 +57,24 @@ def generate_reply(email_id: int, user=Depends(get_current_user), db: Session = 
 
     from backend.services.ai_service import generate_email_reply
 
-    ai_reply = generate_email_reply(
+    result = generate_email_reply(
         email.body,
-        user["company_id"]
+        user["company_id"],
+        db=db,
+        thread_id=email.thread_id
     )
 
-    email.ai_reply = ai_reply
+    # ✅ FIXED (no dict issue)
+    email.ai_reply = result["reply"]
+    email.confidence = result["confidence"]
     email.status = "AI_GENERATED"
 
     db.commit()
 
-    return {"ai_reply": ai_reply}
+    return result
 
 
-# =========================
-# HUMAN EDIT
-# =========================
+# ---------------- HUMAN EDIT ----------------
 @router.put("/update-reply")
 def update_reply(email_id: int, new_reply: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
 
@@ -98,9 +94,7 @@ def update_reply(email_id: int, new_reply: str, user=Depends(get_current_user), 
     return {"message": "Reply updated"}
 
 
-# =========================
-# SEND EMAIL (SMTP)
-# =========================
+# ---------------- SEND ----------------
 @router.post("/send/{email_id}")
 def send_email(email_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
 
@@ -112,58 +106,66 @@ def send_email(email_id: int, user=Depends(get_current_user), db: Session = Depe
     if not email:
         return {"error": "Email not found"}
 
-    # prevent double send
     if email.status == "SENT":
         return {"message": "Already sent"}
 
-    # init sender
+    # ---------- SAFETY ----------
+    to_email = email.sender or Config.EMAIL_USER
+
+    if not to_email:
+        return {"error": "No recipient email"}
+
+    reply_text = email.final_reply or email.ai_reply
+
+    if not reply_text:
+        return {"error": "No reply content"}
+
+    # ---------- SMTP ----------
     sender = EmailSender(
         Config.EMAIL_USER,
         Config.EMAIL_PASS
     )
 
-    print("Sending to:", email.sender)
+    print("Sending to:", to_email)
+    print("Message ID:", email.message_id)
 
-    # send email
     sender.send_email(
-        to_email=email.sender,
+        to_email=to_email,
         subject=f"Re: {email.subject}",
-        body=email.final_reply or email.ai_reply
+        body=reply_text,
+        message_id=email.message_id
     )
 
-    # update status
+    # ---------- UPDATE ----------
     email.status = "SENT"
     db.commit()
 
     return {"message": "Email sent successfully"}
 
 
-# =========================
-# TODO (HUMAN REVIEW QUEUE)
-# =========================
+# ---------------- TODO ----------------
 @router.get("/todo")
 def get_todo(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
-    emails = db.query(Email).filter(
+    return db.query(Email).filter(
         Email.company_id == user["company_id"],
         Email.status == "AI_GENERATED"
-    ).all()
-
-    return emails
+    ).order_by(Email.id.desc()).all()
 
 
-# =========================
-# DASHBOARD STATS
-# =========================
+# ---------------- STATS ----------------
 @router.get("/stats")
 def get_stats(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
-    base = db.query(Email).filter(Email.company_id == user["company_id"])
+    base = db.query(Email).filter(
+        Email.company_id == user["company_id"]
+    )
 
     return {
         "total_emails": base.count(),
-        "replied": base.filter(Email.status == "SENT").count(),
-        "pending": base.filter(Email.status == "AI_GENERATED").count(),
+        "new": base.filter(Email.status == "NEW").count(),
+        "ai_generated": base.filter(Email.status == "AI_GENERATED").count(),
         "reviewed": base.filter(Email.status == "HUMAN_REVIEWED").count(),
+        "sent": base.filter(Email.status == "SENT").count(),
     }
 

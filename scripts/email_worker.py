@@ -1,3 +1,4 @@
+
 import sys
 import os
 
@@ -16,6 +17,7 @@ from app.email.email_queue import add_to_queue
 print("Starting AI Worker...")
 
 
+# ---------------- FETCH EMAILS ----------------
 def fetch_emails(db):
 
     listener = EmailListener(
@@ -31,8 +33,10 @@ def fetch_emails(db):
         new_email = Email(
             subject=e["subject"],
             body=e["body"],
-            company_id=1,   # abhi fixed (later dynamic)
-            status="NEW"
+            company_id=1,
+            status="NEW",
+            message_id=e.get("message_id"),
+            thread_id=e.get("message_id")
         )
 
         db.add(new_email)
@@ -44,6 +48,7 @@ def fetch_emails(db):
         print("New email fetched:", e["subject"])
 
 
+# ---------------- PROCESS QUEUE ----------------
 def process_queue():
 
     db = SessionLocal()
@@ -64,13 +69,16 @@ def process_queue():
         if not email:
             continue
 
-        #  AI reply
-        reply = generate_email_reply(
+        # ✅ FIXED HERE
+        result = generate_email_reply(
             email.body,
-            item["company_id"]
+            item["company_id"],
+            db=db,
+            thread_id=email.thread_id
         )
 
-        email.ai_reply = reply
+        email.ai_reply = result["reply"]          # string only
+        email.confidence = result["confidence"]   # int
         email.status = "AI_GENERATED"
 
         db.commit()
@@ -79,18 +87,20 @@ def process_queue():
     db.close()
 
 
+# ---------------- RUN LOOP ----------------
 if __name__ == "__main__":
 
     while True:
 
         db = SessionLocal()
 
-        #  FETCH EMAILS
+        # fetch new emails
         fetch_emails(db)
 
         db.close()
 
-        #  PROCESS AI
+        # process AI replies
         process_queue()
 
         time.sleep(10)
+
