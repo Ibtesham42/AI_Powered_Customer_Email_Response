@@ -4,7 +4,7 @@ import logging
 from app.rag.rag_pipeline import RAGPipeline
 from app.llm.llm_client import LLMClient
 from app.llm.prompt_builder import build_email_prompt
-
+from app.satyacode.detector import satyacode_detect   
 
 class EmailResponder:
 
@@ -16,9 +16,10 @@ class EmailResponder:
 
         logging.info(f"EmailResponder initialized for user: {user_id}")
 
-    
+
+    # -------------------------------------
     # Clean LLM Output
-    
+    # -------------------------------------
 
     def clean_response(self, response):
 
@@ -27,14 +28,14 @@ class EmailResponder:
 
         return response.strip()
 
-    
+
+    # -------------------------------------
     # Extraction Utilities
-    
+    # -------------------------------------
 
     def extract_order_id(self, text):
 
         match = re.search(r"\b\d{5,}\b", text)
-
         return match.group() if match else None
 
 
@@ -44,20 +45,17 @@ class EmailResponder:
             r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
             text
         )
-
         return match.group() if match else None
 
 
     def extract_ticket_id(self, text):
 
         match = re.search(r"\bT\d+\b", text, re.IGNORECASE)
-
         return match.group() if match else None
 
 
     def extract_project_name(self, text):
 
-        # project "Name"
         match = re.search(
             r'project\s+"([^"]+)"',
             text,
@@ -67,7 +65,6 @@ class EmailResponder:
         if match:
             return match.group(1)
 
-        # fallback: words before "project"
         match = re.search(
             r'([A-Za-z\s]+)\s+project',
             text,
@@ -80,20 +77,18 @@ class EmailResponder:
         return None
 
 
-
+    # -------------------------------------
     # Search Helper
-    
+    # -------------------------------------
 
     def search_documents(self, keyword):
 
         results = []
-
         keyword = keyword.lower()
 
         for doc in self.rag.documents:
 
             if keyword in doc["text"].lower():
-
                 results.append(doc["text"])
 
                 if len(results) >= 3:
@@ -102,13 +97,38 @@ class EmailResponder:
         return results
 
 
-    
+    # -------------------------------------
+    # 🔥 NEW: Priority Detection
+    # -------------------------------------
+
+    def get_priority(self, satya_code):
+
+        if "⚡" in satya_code:
+            return "HIGH"
+
+        if "∆∆" in satya_code:
+            return "MEDIUM"
+
+        return "NORMAL"
+
+
+    # -------------------------------------
     # MAIN PIPELINE
-    
+    # -------------------------------------
 
     def generate_reply(self, customer_email):
 
         logging.info("Processing new customer email")
+
+        # 🔥 NEW: Satyacode detection
+        satya_code = satyacode_detect(customer_email)
+        priority = self.get_priority(satya_code)
+
+        logging.info(f"Satyacode: {satya_code} | Priority: {priority}")
+
+        # -------------------------------------
+        # Extract identifiers
+        # -------------------------------------
 
         order_id = self.extract_order_id(customer_email)
         email_id = self.extract_email(customer_email)
@@ -117,74 +137,57 @@ class EmailResponder:
 
         retrieved_context = []
 
-        
-        #  Project search
-        
+        # -------------------------------------
+        # Project search
+        # -------------------------------------
 
         if project_name:
-
             logging.info(f"Searching project: {project_name}")
-
             retrieved_context = self.search_documents(project_name)
 
-
-        
+        # -------------------------------------
         # Order search
-        
+        # -------------------------------------
 
         if not retrieved_context and order_id:
-
             logging.info(f"Searching order: {order_id}")
-
             retrieved_context = self.search_documents(order_id)
 
-
-        
+        # -------------------------------------
         # Ticket search
-        
+        # -------------------------------------
 
         if not retrieved_context and ticket_id:
-
             logging.info(f"Searching ticket: {ticket_id}")
-
             retrieved_context = self.search_documents(ticket_id)
 
-
-        
-        #  Email searching
-        
+        # -------------------------------------
+        # Email search
+        # -------------------------------------
 
         if not retrieved_context and email_id:
-
             logging.info(f"Searching email: {email_id}")
-
             retrieved_context = self.search_documents(email_id)
 
-
-        
+        # -------------------------------------
         # Vector search fallback
-        
+        # -------------------------------------
 
         if not retrieved_context:
-
             logging.info("Using vector search fallback")
-
             retrieved_context = self.rag.retrieve(customer_email)
-
 
         print("\nRetrieved Context:")
         print(retrieved_context)
 
-
-        
-        # Buildd Prompt
-        
+        # -------------------------------------
+        # Build Prompt (Satyacode already injected there)
+        # -------------------------------------
 
         prompt = build_email_prompt(
             customer_email,
             retrieved_context
         )
-
 
         # -------------------------------------
         # Generate LLM response
