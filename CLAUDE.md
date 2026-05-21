@@ -35,6 +35,9 @@ not the script location.
 # Activate the env first
 venv\Scripts\activate                         # Windows
 
+# Apply database migrations (required on first run — schema is Alembic-managed)
+alembic upgrade head
+
 # FastAPI backend (the real entry point) — http://127.0.0.1:8000, docs at /docs
 uvicorn backend.main:app --reload
 

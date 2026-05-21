@@ -29,11 +29,13 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   (`alembic/versions/dd80321d216f_baseline_schema.py`); existing `saas.db`
   stamped at that revision.
 
-## Phase 1 — Database & auth
+## Phase 1 — Database & auth  ☑ DONE
 *Goal: real DB, real tenancy, real sessions.*
 
-- ☐ Add Postgres + pgvector to Docker Compose; switch `DATABASE_URL`.
-- ☐ Retire `Base.metadata.create_all`; all schema via Alembic.
+- ☑ Switch `DATABASE_URL` to Postgres — Neon managed cloud (pgvector
+  available, enabled in Phase 4). Docker Compose for Postgres skipped in
+  favour of managed cloud.
+- ☑ Retire `Base.metadata.create_all` — schema is Alembic-only.
 - ☑ Expand `Company` (address fields) and `User` (full_name, phone).
   → migration `3d3e063b9932`.
 - ☑ **Fix the tenancy hole**: `signup` always creates a new Company; caller

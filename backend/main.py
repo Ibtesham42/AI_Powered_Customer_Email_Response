@@ -3,14 +3,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.config import settings
-from backend.database import Base, engine
 from backend.logging_config import configure_logging, get_logger
-
-# Import models so they register with Base.metadata before create_all().
-from backend.models.company import Company  # noqa: F401
-from backend.models.email import Email  # noqa: F401
-from backend.models.refresh_token import RefreshToken  # noqa: F401
-from backend.models.user import User  # noqa: F401
 from backend.rate_limit import limiter
 from backend.routes import auth, dashboard, data, email, protected
 
@@ -26,9 +19,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# NOTE: create_all() is retired in Phase 1 (chunk 4) in favour of Alembic.
-Base.metadata.create_all(bind=engine)
-
+# The database schema is managed entirely by Alembic — run `alembic upgrade head`.
 # All feature routes are versioned under /api/v1.
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth.router, prefix="/auth", tags=["Auth"])
