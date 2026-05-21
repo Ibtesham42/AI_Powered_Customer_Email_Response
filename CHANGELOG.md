@@ -5,12 +5,17 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
-### Chunk 3d — dashboard stats from tickets · `3069729`+
+### Chunk 3e — re-point the Streamlit dashboard
+- `dashboard_app.py` now drives `/tickets/queue`, `/tickets/{id}` and
+  `/messages/{id}/{draft,send,regenerate,reject}`, plus the new
+  `/dashboard/stats` keys. Per-item actions: Send / Regenerate / Reject.
+
+### Chunk 3d — dashboard stats from tickets · `95cead9`
 - `routes/dashboard.py` `/stats` now reports Ticket counts (by status,
   escalated, review-queue depth) via `ticket_service.company_stats`,
   replacing the `emails`-table counts.
 
-### Chunk 3c — worker ingests into the domain model
+### Chunk 3c — worker ingests into the domain model · `3069729`
 - `email_worker.py` rewritten: ingests email via `ticket_service`
   (`find_or_open_ticket` threads replies by In-Reply-To and reopens
   resolved/closed Tickets), keyed by a new `INGEST_COMPANY_ID` config var.

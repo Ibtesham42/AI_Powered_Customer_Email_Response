@@ -1,6 +1,5 @@
-
-import streamlit as st
 import requests
+import streamlit as st
 
 BASE_URL = "http://127.0.0.1:8000/api/v1"
 
@@ -13,7 +12,8 @@ if "refresh_token" not in st.session_state:
     st.session_state.refresh_token = None
 
 # ---------- STYLE ----------
-st.markdown("""
+st.markdown(
+    """
     <style>
     .card {
         padding: 20px;
@@ -23,7 +23,9 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("Customer Support Panel")
 
@@ -37,11 +39,10 @@ if not st.session_state.token:
 
     if st.button("Login"):
         try:
-            res = requests.post(f"{BASE_URL}/auth/login", json={
-                "email": email,
-                "password": password
-            })
-
+            res = requests.post(
+                f"{BASE_URL}/auth/login",
+                json={"email": email, "password": password},
+            )
             if res.status_code == 200:
                 data = res.json()
                 st.session_state.token = data["access_token"]
@@ -50,8 +51,7 @@ if not st.session_state.token:
                 st.rerun()
             else:
                 st.error("Invalid credentials")
-
-        except:
+        except Exception:
             st.error("Backend not running")
 
 # ---------- DASHBOARD ----------
@@ -77,21 +77,35 @@ else:
     try:
         res = requests.get(f"{BASE_URL}/dashboard/stats", headers=headers)
         stats = res.json() if res.status_code == 200 else {}
-    except:
+    except Exception:
         st.error("Backend not reachable")
         stats = {}
 
     c1, c2, c3, c4, c5 = st.columns(5)
-
-    c1.markdown(f"<div class='card'> Total<br><h2>{stats.get('total_emails', 0)}</h2></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='card'> New<br><h2>{stats.get('new', 0)}</h2></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='card'> AI Generated<br><h2>{stats.get('ai_generated', 0)}</h2></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='card'> Reviewed<br><h2>{stats.get('reviewed', 0)}</h2></div>", unsafe_allow_html=True)
-    c5.markdown(f"<div class='card'> Sent<br><h2>{stats.get('sent', 0)}</h2></div>", unsafe_allow_html=True)
+    c1.markdown(
+        f"<div class='card'>Tickets<br><h2>{stats.get('tickets_total', 0)}</h2></div>",
+        unsafe_allow_html=True,
+    )
+    c2.markdown(
+        f"<div class='card'>Open<br><h2>{stats.get('tickets_open', 0)}</h2></div>",
+        unsafe_allow_html=True,
+    )
+    c3.markdown(
+        f"<div class='card'>Review Queue<br><h2>{stats.get('review_queue', 0)}</h2></div>",
+        unsafe_allow_html=True,
+    )
+    c4.markdown(
+        f"<div class='card'>Escalated<br><h2>{stats.get('tickets_escalated', 0)}</h2></div>",
+        unsafe_allow_html=True,
+    )
+    c5.markdown(
+        f"<div class='card'>Resolved<br><h2>{stats.get('tickets_resolved', 0)}</h2></div>",
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
-    # ---------- UPLOAD ----------
+    # ---------- UPLOAD KNOWLEDGE BASE ----------
     st.markdown("## Upload Knowledge Base")
 
     uploaded_file = st.file_uploader("Upload PDF / DOCX")
@@ -102,10 +116,13 @@ else:
                 f"{BASE_URL}/data/upload",
                 headers=headers,
                 files={
-                    "file": (uploaded_file.name, uploaded_file, uploaded_file.type)
-                }
+                    "file": (
+                        uploaded_file.name,
+                        uploaded_file,
+                        uploaded_file.type,
+                    )
+                },
             )
-
         if res.status_code == 200:
             st.success("AI trained successfully!")
         else:
@@ -115,136 +132,104 @@ else:
 
     # ---------- HEADER ----------
     col1, col2 = st.columns([8, 1])
-
     with col1:
-        st.subheader("Pending Emails (Priority Sorted)")
-
+        st.subheader("Review Queue (Priority Sorted)")
     with col2:
         if st.button("Refresh"):
             st.rerun()
 
-    # ---------- FETCH EMAILS ----------
+    # ---------- FETCH REVIEW QUEUE ----------
     try:
-        res = requests.get(f"{BASE_URL}/email/todo", headers=headers)
-        emails = res.json() if res.status_code == 200 else []
-    except:
-        st.error("Failed to fetch emails")
-        emails = []
+        res = requests.get(f"{BASE_URL}/tickets/queue", headers=headers)
+        items = res.json() if res.status_code == 200 else []
+    except Exception:
+        st.error("Failed to fetch the review queue")
+        items = []
 
-    if not emails:
-        st.success("No pending emails")
+    if not items:
+        st.success("No drafts awaiting review")
 
-    # ---------- EMAIL LIST ----------
-    for email in emails:
+    # ---------- QUEUE ITEMS ----------
+    for item in items:
+        message_id = item["id"]
+        ticket_id = item["ticket_id"]
 
         with st.container():
             st.markdown("----")
+            st.markdown(f"### {item.get('ticket_subject') or '(no subject)'}")
+            st.caption(f"From: {item.get('customer_email', 'Customer')}")
+            st.write((item.get("body") or "")[:300] + "...")
 
-            left, right = st.columns([3, 1])
+            # ---------- CONFIDENCE ----------
+            conf = item.get("confidence") or 0
+            if conf < 50:
+                st.error(f"URGENT | Low confidence: {conf}%")
+            elif conf < 80:
+                st.warning(f"Medium confidence: {conf}%")
+            else:
+                st.success(f"High confidence: {conf}%")
 
-            # ---------- EMAIL INFO ----------
-            with left:
-                st.markdown(f"### {email['subject']}")
-                st.caption(f"From: {email.get('sender', 'Customer')}")
-                st.write(email["body"][:300] + "...")
-                st.caption(f"Status: {email['status']}")
-
-                # ---------- CONFIDENCE ----------
-                conf = email.get("confidence", 0)
-
-                if conf < 50:
-                    st.error(f"🔥 URGENT | Low Confidence: {conf}%")
-                elif conf < 80:
-                    st.warning(f"⚠️ Medium Confidence: {conf}%")
-                else:
-                    st.success(f"✅ High Confidence: {conf}%")
-
-                # ---------- THREAD ----------
-                if email.get("thread_id"):
-
-                    with st.expander("View Conversation"):
-
-                        try:
-                            thread_res = requests.get(
-                                f"{BASE_URL}/email/thread/{email['thread_id']}",
-                                headers=headers
-                            )
-
-                            thread_data = thread_res.json()
-
-                            for t in thread_data:
-                                st.markdown(f"🧑 Customer: {t['body']}")
-
-                                if t.get("ai_reply"):
-                                    st.markdown(f"🧑‍💻 Support: {t['ai_reply']}")
-
-                        except:
-                            st.error("Failed to load thread")
-
-            # ---------- RIGHT PANEL ----------
-            with right:
-                st.caption(f"Status: {email['status']}")
-
-                # ---------- ASSIGN ----------
-                agent_id = st.number_input(
-                    "Assign to Agent",
-                    min_value=1,
-                    step=1,
-                    key=f"assign_input_{email['id']}"
-                )
-
-                if st.button("Assign", key=f"assign_{email['id']}"):
-                    requests.post(
-                        f"{BASE_URL}/email/assign",
-                        params={
-                            "email_id": email["id"],
-                            "agent_id": agent_id
-                        },
-                        headers=headers
+            # ---------- CONVERSATION ----------
+            with st.expander("View Conversation"):
+                try:
+                    tres = requests.get(
+                        f"{BASE_URL}/tickets/{ticket_id}", headers=headers
                     )
-                    st.success("Assigned")
-                    st.rerun()
+                    if tres.status_code == 200:
+                        for m in tres.json().get("messages", []):
+                            who = (
+                                "Customer"
+                                if m["direction"] == "inbound"
+                                else "Support"
+                            )
+                            st.markdown(f"**{who}:** {m.get('body', '')}")
+                    else:
+                        st.error("Failed to load conversation")
+                except Exception:
+                    st.error("Failed to load conversation")
 
-            # ---------- EDIT ----------
-            edited_reply = st.text_area(
+            # ---------- DRAFT ----------
+            edited = st.text_area(
                 "Draft Reply",
-                value=email.get("ai_reply", ""),
-                key=f"edit_{email['id']}"
+                value=item.get("ai_draft") or "",
+                key=f"draft_{message_id}",
             )
 
-            colA, colB = st.columns(2)
+            b1, b2, b3 = st.columns(3)
 
-            # ---------- UPDATE ----------
-            if colA.button("Update", key=f"update_{email['id']}"):
-                requests.put(
-                    f"{BASE_URL}/email/update-reply",
-                    params={
-                        "email_id": email["id"],
-                        "new_reply": edited_reply
-                    },
-                    headers=headers
-                )
-                st.success("Reply updated")
+            # Send: save the (possibly edited) draft, then send.
+            if b1.button("Send", key=f"send_{message_id}"):
+                with st.spinner("Sending..."):
+                    requests.put(
+                        f"{BASE_URL}/messages/{message_id}/draft",
+                        headers=headers,
+                        json={"text": edited},
+                    )
+                    sres = requests.post(
+                        f"{BASE_URL}/messages/{message_id}/send",
+                        headers=headers,
+                    )
+                if sres.status_code == 200:
+                    st.success("Reply sent")
+                else:
+                    st.error("Send failed")
                 st.rerun()
 
-            # ---------- SEND ----------
-            if colB.button("Send", key=f"send_{email['id']}"):
-
-                with st.spinner("Sending..."):
-
-                    requests.put(
-                        f"{BASE_URL}/email/update-reply",
-                        params={
-                            "email_id": email["id"],
-                            "new_reply": edited_reply
-                        },
-                        headers=headers
-                    )
-
+            # Regenerate the AI draft.
+            if b2.button("Regenerate", key=f"regen_{message_id}"):
+                with st.spinner("Regenerating..."):
                     requests.post(
-                        f"{BASE_URL}/email/send/{email['id']}",
-                        headers=headers
+                        f"{BASE_URL}/messages/{message_id}/regenerate",
+                        headers=headers,
                     )
+                st.rerun()
 
-                st.success("Email sent successfully")
+            # Reject -> escalate the ticket.
+            if b3.button("Reject", key=f"reject_{message_id}"):
+                requests.post(
+                    f"{BASE_URL}/messages/{message_id}/reject",
+                    headers=headers,
+                    json={"reason": "agent_rejected"},
+                )
+                st.warning("Draft rejected; ticket escalated")
                 st.rerun()
