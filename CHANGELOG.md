@@ -5,7 +5,13 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
-### Chunk 3b — ticket/message routes
+### Chunk 3c — worker ingests into the domain model
+- `email_worker.py` rewritten: ingests email via `ticket_service`
+  (`find_or_open_ticket` threads replies by In-Reply-To and reopens
+  resolved/closed Tickets), keyed by a new `INGEST_COMPANY_ID` config var.
+- Worker converted to structured logging with an error-resilient poll loop.
+
+### Chunk 3b — ticket/message routes · `dc1d5be`
 - `routes/tickets.py` (review queue, list, ticket detail) + `routes/messages.py`
   (regenerate / edit / approve / reject / send) — thin over the services.
 - `backend/serializers.py`; `InvalidTransitionError` → HTTP 409 exception

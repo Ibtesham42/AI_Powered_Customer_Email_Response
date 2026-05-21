@@ -77,6 +77,36 @@ def open_ticket(
     return ticket
 
 
+def find_or_open_ticket(
+    db: Session,
+    company_id: int,
+    customer_id: int,
+    subject: str | None,
+    message_id: str | None,
+    in_reply_to: str | None = None,
+) -> Ticket:
+    """Find the Ticket an inbound email belongs to via In-Reply-To threading,
+    or open a new one. A reply to a resolved/closed Ticket reopens it."""
+    if in_reply_to:
+        parent = (
+            db.query(Message)
+            .filter(
+                Message.company_id == company_id,
+                Message.message_id == in_reply_to,
+            )
+            .first()
+        )
+        if parent is not None:
+            ticket = get_ticket(db, company_id, parent.ticket_id)
+            if ticket is not None:
+                if ticket.status != TicketStatus.OPEN:
+                    transition_ticket(db, ticket, TicketStatus.OPEN)
+                return ticket
+    return open_ticket(
+        db, company_id, customer_id, subject, thread_id=message_id
+    )
+
+
 def get_ticket(db: Session, company_id: int, ticket_id: int) -> Ticket | None:
     return (
         db.query(Ticket)

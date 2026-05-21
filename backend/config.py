@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Raw optional env value, resolved into Settings below.
+_INGEST_COMPANY_ID = os.getenv("INGEST_COMPANY_ID")
+
 
 class MissingSettingError(RuntimeError):
     """Raised when a required environment variable is not set."""
@@ -43,6 +46,12 @@ class Settings:
 
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+    # --- Email ingestion (interim — per-company mailboxes arrive in Phase 3) ---
+    # The Company that inbound email from the single global mailbox belongs to.
+    INGEST_COMPANY_ID: int | None = (
+        int(_INGEST_COMPANY_ID) if _INGEST_COMPANY_ID else None
+    )
 
 
 settings = Settings()

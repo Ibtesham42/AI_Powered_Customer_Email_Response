@@ -1,6 +1,6 @@
 # Current Tasks
 
-Active checkpoint: **Phase 2 chunk 3 in progress — 3a, 3b done** on
+Active checkpoint: **Phase 2 chunk 3 in progress — 3a, 3b, 3c done** on
 `feature/phase-2-domain-model`. Context: `PROJECT_STATE.md` ·
 Plan: `IMPLEMENTATION_ROADMAP.md`.
 
@@ -29,9 +29,10 @@ app works throughout.
   `routes/messages.py` (regenerate / edit / approve / reject / send), thin
   over the services. `serializers.py` added; `InvalidTransitionError` → HTTP
   409 via an app exception handler.
-- ☐ **3c** — `email_worker.py`: ingest via `ticket_service`
-  (`get_or_create_customer` → find or `open_ticket` by thread → `add_message`),
-  using `INGEST_COMPANY_ID` (add it to `backend/config.py`).
+- ☑ **3c** — `email_worker.py` ingests via `ticket_service`
+  (`get_or_create_customer` → `find_or_open_ticket` with In-Reply-To
+  threading → `add_message`), keyed by `INGEST_COMPANY_ID`. Worker
+  converted to structured logging.
 - ☐ **3d** — `routes/dashboard.py`: compute stats from tickets/messages.
 - ☐ **3e** — `dashboard_app.py`: re-point to the new endpoints (minimal).
 - ☐ **3f** — drop the legacy path: delete `models/email.py`,
@@ -41,7 +42,7 @@ app works throughout.
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`; confirm branch `feature/phase-2-domain-model` and
    `alembic current` = `76870d572c26`.
-2. Resume at **sub-step 3c** (worker ingest). Keep the legacy
+2. Resume at **sub-step 3d** (dashboard stats route). Keep the legacy
    `/api/v1/email/*` routes live until 3e switches the dashboard; remove
    them in 3f.
 3. Commit per sub-step; sync `IMPLEMENTATION_ROADMAP.md`, `CHANGELOG.md`,
