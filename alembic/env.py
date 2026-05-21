@@ -15,7 +15,6 @@ from backend.database import DATABASE_URL, Base  # noqa: E402
 from backend.models.audit_log import AuditLog  # noqa: E402,F401
 from backend.models.company import Company  # noqa: E402,F401
 from backend.models.customer import Customer  # noqa: E402,F401
-from backend.models.email import Email  # noqa: E402,F401
 from backend.models.message import Message  # noqa: E402,F401
 from backend.models.refresh_token import RefreshToken  # noqa: E402,F401
 from backend.models.ticket import Ticket  # noqa: E402,F401

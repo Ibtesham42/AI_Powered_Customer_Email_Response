@@ -10,7 +10,6 @@ from backend.routes import (
     auth,
     dashboard,
     data,
-    email,
     messages,
     protected,
     tickets,
@@ -40,7 +39,6 @@ def _invalid_transition_handler(request: Request, exc: InvalidTransitionError):
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_v1.include_router(protected.router, prefix="/user", tags=["User"])
-api_v1.include_router(email.router, prefix="/email", tags=["Email"])
 api_v1.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_v1.include_router(data.router, prefix="/data", tags=["Data"])
 api_v1.include_router(tickets.router, prefix="/tickets", tags=["Tickets"])

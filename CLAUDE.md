@@ -76,21 +76,26 @@ HTTP. The standalone Streamlit apps are the legacy single-tenant path.
 ### Request flow
 
 ```
-Email created (POST /email/create  OR  email_worker.py fetching IMAP)
-  -> row in emails table, status=NEW
+Inbound email (email_worker.py polling Gmail IMAP)
+  -> get_or_create_customer; find_or_open_ticket (In-Reply-To threading)
+  -> inbound Message on the Ticket, review_status=AWAITING_AI
   -> add_to_queue() appends to email_queue.json
-  -> email_worker.py drains queue -> generate_email_reply()
+  -> email_worker.py drains queue -> ai_service.generate_draft()
        -> get_rag_context()  (FAISS retrieval)
        -> build_email_prompt() -> LLMClient.generate()  (Groq)
-       -> confidence score
-  -> status=AI_GENERATED, ai_reply + confidence saved
-  -> dashboard GET /email/todo  (sorted ascending by confidence = lowest first)
-  -> agent edits -> PUT /email/update-reply -> status=HUMAN_REVIEWED
-  -> POST /email/send/{id} -> EmailSender SMTP -> status=SENT
+       -> confidence heuristic
+  -> ticket_service.record_ai_draft(): ai_draft + confidence saved,
+     review_status=DRAFTED
+  -> dashboard GET /api/v1/tickets/queue  (lowest confidence first)
+  -> agent edits -> PUT /api/v1/messages/{id}/draft -> review_status=REVIEWED
+  -> POST /api/v1/messages/{id}/send -> EmailSender SMTP -> review_status=SENT,
+     outbound Message created, Ticket -> PENDING
 ```
 
-The email `status` string (`NEW` -> `AI_GENERATED` -> `HUMAN_REVIEWED` -> `SENT`) is the
-core state machine — most routes and dashboard logic branch on it.
+Two state machines drive the domain: the **Ticket** lifecycle
+(`OPEN -> PENDING -> RESOLVED -> CLOSED`, plus an escalated flag) and the
+per-**Message** review flow (`AWAITING_AI -> DRAFTED -> REVIEWED -> SENT`),
+both validated in `backend/services/state_machine.py`.
 
 ### Multi-tenancy
 

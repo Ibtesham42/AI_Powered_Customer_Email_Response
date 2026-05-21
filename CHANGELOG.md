@@ -5,6 +5,13 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
+### Chunk 3f — drop the legacy emails path (completes Chunk 3)
+- Deleted `routes/email.py`, `models/email.py`, and the legacy `ai_service`
+  functions (`generate_email_reply`, `get_thread_history`).
+- Removed the `email` router from `main.py` and the `Email` model from
+  `alembic/env.py`.
+- Migration `7d78ba51b1e8` drops the (empty) `emails` table.
+
 ### Chunk 3e — re-point the Streamlit dashboard
 - `dashboard_app.py` now drives `/tickets/queue`, `/tickets/{id}` and
   `/messages/{id}/{draft,send,regenerate,reject}`, plus the new

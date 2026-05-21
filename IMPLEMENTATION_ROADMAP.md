@@ -67,8 +67,8 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   no backfill. The table itself is dropped in chunk 3.
 - ☑ Tenant-scoped service layer — `backend/services/ticket_service.py`;
   every query filtered by `company_id`.
-- ◐ Rewrite Ticket/Message routes; drop the old `emails` table — chunk 3 in
-  progress (3a done; 3b–3f pending, see `CURRENT_TASKS.md`).
+- ☑ Rewrite Ticket/Message routes; drop the old `emails` table — chunk 3
+  complete (sub-steps 3a–3f; migration `7d78ba51b1e8`).
 - ☐ Write security-relevant events to `audit_logs` (table created in chunk 1).
 
 ## Phase 3 — Mailbox & ingestion
