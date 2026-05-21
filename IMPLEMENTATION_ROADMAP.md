@@ -40,8 +40,9 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   becomes `owner`. Join-by-name removed.
 - ☑ Validate signup input (Pydantic): EmailStr, password ≥ 8,
   `password == verify_password`, no-blank fields.
-- ☐ Access token + refresh token: `refresh_tokens` table, `/refresh`,
-  `/logout`, rotation, revocation.
+- ☑ Access token + refresh token: `refresh_tokens` table, `/refresh`,
+  `/logout`, rotation, revocation. → migration `fd095f9aa6c3`,
+  `backend/services/auth_service.py`.
 - ☐ Rate limiting on `signup` / `login` / `forgot-password`.
 - ☐ RBAC dependency: `require_owner`.
 - ☐ `/api/v1` prefix on all routes.

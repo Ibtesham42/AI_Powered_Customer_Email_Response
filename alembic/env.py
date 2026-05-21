@@ -14,6 +14,7 @@ from backend.database import DATABASE_URL, Base  # noqa: E402
 # Import models so they register with Base.metadata for autogenerate.
 from backend.models.company import Company  # noqa: E402,F401
 from backend.models.email import Email  # noqa: E402,F401
+from backend.models.refresh_token import RefreshToken  # noqa: E402,F401
 from backend.models.user import User  # noqa: E402,F401
 
 # Alembic Config object — provides access to values in alembic.ini.

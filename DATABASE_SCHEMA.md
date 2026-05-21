@@ -11,6 +11,17 @@ Conventions:
 - Enums are Postgres native enum types.
 - Soft-sensitive columns (credentials, token hashes) never store plaintext.
 
+## Build status
+
+Tracked per chunk as the schema is implemented (see `IMPLEMENTATION_ROADMAP.md`).
+
+- **Built** (SQLite, via Alembic migrations): `companies` (address fields +
+  timestamps), `users` (`full_name`, `phone`, timestamps), `refresh_tokens`.
+  The legacy `emails` table still exists, pending the Phase 2 migration.
+- **Pending**: `customers`, `tickets`, `messages`, `audit_logs` (Phase 2);
+  `mailboxes`, `password_reset_tokens` (Phase 3); `kb_documents`, `kb_chunks`
+  (Phase 4). Move to Postgres + pgvector: Phase 1, Chunk 4.
+
 ## Enums
 
 ```

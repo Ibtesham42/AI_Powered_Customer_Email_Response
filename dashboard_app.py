@@ -9,6 +9,8 @@ st.set_page_config(page_title="Customer Support Panel", layout="wide")
 # ---------- SESSION ----------
 if "token" not in st.session_state:
     st.session_state.token = None
+if "refresh_token" not in st.session_state:
+    st.session_state.refresh_token = None
 
 # ---------- STYLE ----------
 st.markdown("""
@@ -41,7 +43,9 @@ if not st.session_state.token:
             })
 
             if res.status_code == 200:
-                st.session_state.token = res.json()["access_token"]
+                data = res.json()
+                st.session_state.token = data["access_token"]
+                st.session_state.refresh_token = data.get("refresh_token")
                 st.success("Login successful")
                 st.rerun()
             else:
@@ -53,6 +57,19 @@ if not st.session_state.token:
 # ---------- DASHBOARD ----------
 else:
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
+
+    # ---------- LOGOUT ----------
+    if st.button("Logout"):
+        try:
+            requests.post(
+                f"{BASE_URL}/auth/logout",
+                json={"refresh_token": st.session_state.refresh_token or ""},
+            )
+        except Exception:
+            pass
+        st.session_state.token = None
+        st.session_state.refresh_token = None
+        st.rerun()
 
     # ---------- STATS ----------
     st.subheader("Overview")

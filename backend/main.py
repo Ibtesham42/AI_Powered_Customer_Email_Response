@@ -7,6 +7,7 @@ from backend.logging_config import configure_logging, get_logger
 # Import models so they register with Base.metadata before create_all().
 from backend.models.company import Company  # noqa: F401
 from backend.models.email import Email  # noqa: F401
+from backend.models.refresh_token import RefreshToken  # noqa: F401
 from backend.models.user import User  # noqa: F401
 from backend.routes import auth, dashboard, data, email, protected
 

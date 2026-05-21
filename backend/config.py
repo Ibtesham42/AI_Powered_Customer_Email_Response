@@ -31,7 +31,15 @@ class Settings:
     # --- JWT / auth ---
     SECRET_KEY: str = _require("SECRET_KEY")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_HOURS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "24"))
+    # Access token is kept long enough for the legacy Streamlit dashboard,
+    # which has no silent refresh. Lower to ~15-30 min once the Next.js
+    # frontend (with token refresh) ships.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(
+        os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30")
+    )
 
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
