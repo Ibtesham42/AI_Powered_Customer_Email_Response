@@ -34,11 +34,12 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 
 - ☐ Add Postgres + pgvector to Docker Compose; switch `DATABASE_URL`.
 - ☐ Retire `Base.metadata.create_all`; all schema via Alembic.
-- ☐ Expand `Company` (address fields) and `User` (full_name, phone).
-- ☐ **Fix the tenancy hole**: `signup` always creates a new Company; caller
-  becomes `owner`. Remove join-by-name entirely.
-- ☐ Validate signup input (Pydantic): email format, password strength,
-  `password == verify_password`, phone/postal formats.
+- ☑ Expand `Company` (address fields) and `User` (full_name, phone).
+  → migration `3d3e063b9932`.
+- ☑ **Fix the tenancy hole**: `signup` always creates a new Company; caller
+  becomes `owner`. Join-by-name removed.
+- ☑ Validate signup input (Pydantic): EmailStr, password ≥ 8,
+  `password == verify_password`, no-blank fields.
 - ☐ Access token + refresh token: `refresh_tokens` table, `/refresh`,
   `/logout`, rotation, revocation.
 - ☐ Rate limiting on `signup` / `login` / `forgot-password`.
