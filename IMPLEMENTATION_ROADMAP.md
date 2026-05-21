@@ -43,9 +43,11 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ Access token + refresh token: `refresh_tokens` table, `/refresh`,
   `/logout`, rotation, revocation. → migration `fd095f9aa6c3`,
   `backend/services/auth_service.py`.
-- ☐ Rate limiting on `signup` / `login` / `forgot-password`.
-- ☐ RBAC dependency: `require_owner`.
-- ☐ `/api/v1` prefix on all routes.
+- ☑ Rate limiting (slowapi) on `signup` (5/min) and `login` (10/min).
+  `forgot-password` rate limiting lands with that endpoint (Phase 3).
+- ☑ RBAC dependency: `require_owner` — applied to `/data/upload`.
+- ☑ `/api/v1` prefix on all feature routes (`/` and `/health` stay
+  unversioned).
 
 ## Phase 2 — Domain model: Customer + Ticket + Message
 *Goal: replace the flat `emails` table with the real domain.*

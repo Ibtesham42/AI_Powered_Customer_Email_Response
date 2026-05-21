@@ -6,7 +6,7 @@ import sys
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from backend.auth.dependencies import get_current_user
+from backend.auth.dependencies import require_owner
 from backend.logging_config import get_logger
 
 router = APIRouter()
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 @router.post("/upload")
 def upload_file(
     file: UploadFile = File(...),
-    user=Depends(get_current_user)
+    user=Depends(require_owner),
 ):
 
     try:

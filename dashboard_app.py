@@ -2,7 +2,7 @@
 import streamlit as st
 import requests
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 st.set_page_config(page_title="Customer Support Panel", layout="wide")
 

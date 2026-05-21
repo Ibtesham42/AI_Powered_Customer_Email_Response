@@ -8,8 +8,8 @@ Legend: **[now]** exists today (possibly under a different path) ·
 **[new]** to be built · **[change]** exists but must change ·
 **[done]** built in this refactor.
 
-> Build status is updated per chunk. The `/api/v1` prefix itself is pending
-> (Phase 1, Chunk 3) — endpoints currently live without it (e.g. `/auth/*`).
+> Build status is updated per chunk. All feature routes are now served under
+> `/api/v1`; `/` and `/health` stay unversioned.
 
 ## Conventions
 
@@ -26,13 +26,13 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/signup` | **[done]** Creates a new Company; caller becomes its Owner. Body: full_name, company_name, email, phone, password, verify_password, address, city, state, country, postal_code (Pydantic-validated). Returns `{company_id, user_id}`. Rate limiting pending (Chunk 3). |
-| POST | `/login` | **[done]** Returns `access_token` + `refresh_token`. Generic error message, no account enumeration. Rate limiting pending (Chunk 3). |
+| POST | `/signup` | **[done]** Creates a new Company; caller becomes its Owner. Body: full_name, company_name, email, phone, password, verify_password, address, city, state, country, postal_code (Pydantic-validated). Returns `{company_id, user_id}`. Rate limited (5/min). |
+| POST | `/login` | **[done]** Returns `access_token` + `refresh_token`. Generic error message, no account enumeration. Rate limited (10/min). |
 | POST | `/refresh` | **[done]** Exchange a refresh token for a new access token; rotates the refresh token (the old one is revoked). |
 | POST | `/logout` | **[done]** Revoke the refresh token. Idempotent. |
 | POST | `/forgot-password` | **[new]** Sends a reset link via the transactional email provider. Rate-limited. Always returns `200` (no account enumeration). |
 | POST | `/reset-password` | **[new]** Body: reset token + new password. |
-| GET  | `/me` | **[now]** Current User + Company context. Currently at `/user/me`. |
+| GET  | `/me` | **[now]** Current User + Company context. Now at `/api/v1/user/me`. |
 
 ## Company & users — `/api/v1/company`
 
