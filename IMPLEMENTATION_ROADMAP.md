@@ -54,12 +54,14 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 ## Phase 2 — Domain model: Customer + Ticket + Message
 *Goal: replace the flat `emails` table with the real domain.*
 
-- ☐ Create `customers`, `tickets`, `messages` models + migration.
+- ☑ Create `customers`, `tickets`, `messages` (+ `audit_logs`) models +
+  migration `76870d572c26`. `backend/models/enums.py` holds the StrEnum
+  value sets (ticket status, review status, direction, intent).
 - ☐ Implement the two state machines (ticket lifecycle, message review).
 - ☐ Data migration: backfill from `emails` (see DATABASE_SCHEMA.md §migration).
 - ☐ Repository layer: every query tenant-scoped by `company_id`.
 - ☐ Rewrite Ticket/Message routes; drop the old `emails` table.
-- ☐ `audit_logs` table + write security-relevant events.
+- ☐ Write security-relevant events to `audit_logs` (table created in chunk 1).
 
 ## Phase 3 — Mailbox & ingestion
 *Goal: per-Company email, safe credentials, safe queue.*

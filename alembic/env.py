@@ -12,9 +12,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.database import DATABASE_URL, Base  # noqa: E402
 
 # Import models so they register with Base.metadata for autogenerate.
+from backend.models.audit_log import AuditLog  # noqa: E402,F401
 from backend.models.company import Company  # noqa: E402,F401
+from backend.models.customer import Customer  # noqa: E402,F401
 from backend.models.email import Email  # noqa: E402,F401
+from backend.models.message import Message  # noqa: E402,F401
 from backend.models.refresh_token import RefreshToken  # noqa: E402,F401
+from backend.models.ticket import Ticket  # noqa: E402,F401
 from backend.models.user import User  # noqa: E402,F401
 
 # Alembic Config object — provides access to values in alembic.ini.
