@@ -1,6 +1,6 @@
 # Current Tasks
 
-Active checkpoint: **Phase 2 chunk 3 in progress — 3a, 3b, 3c done** on
+Active checkpoint: **Phase 2 chunk 3 in progress — 3a, 3b, 3c, 3d done** on
 `feature/phase-2-domain-model`. Context: `PROJECT_STATE.md` ·
 Plan: `IMPLEMENTATION_ROADMAP.md`.
 
@@ -33,7 +33,9 @@ app works throughout.
   (`get_or_create_customer` → `find_or_open_ticket` with In-Reply-To
   threading → `add_message`), keyed by `INGEST_COMPANY_ID`. Worker
   converted to structured logging.
-- ☐ **3d** — `routes/dashboard.py`: compute stats from tickets/messages.
+- ☑ **3d** — `routes/dashboard.py` `/stats` computes Ticket counts via
+  `ticket_service.company_stats` (totals by status, escalated, review-queue
+  depth).
 - ☐ **3e** — `dashboard_app.py`: re-point to the new endpoints (minimal).
 - ☐ **3f** — drop the legacy path: delete `models/email.py`,
   `routes/email.py`, the legacy `ai_service` functions; remove their imports
@@ -42,9 +44,8 @@ app works throughout.
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`; confirm branch `feature/phase-2-domain-model` and
    `alembic current` = `76870d572c26`.
-2. Resume at **sub-step 3d** (dashboard stats route). Keep the legacy
-   `/api/v1/email/*` routes live until 3e switches the dashboard; remove
-   them in 3f.
+2. Resume at **sub-step 3e** (re-point `dashboard_app.py`). Then 3f removes
+   the legacy `/api/v1/email/*` routes and the `emails` table.
 3. Commit per sub-step; sync `IMPLEMENTATION_ROADMAP.md`, `CHANGELOG.md`,
    `API_DOCUMENTATION.md`, `DATABASE_SCHEMA.md`.
 4. Test via direct route-function calls (`TestClient` is broken — see

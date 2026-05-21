@@ -243,3 +243,25 @@ def list_review_queue(db: Session, company_id: int) -> list[Message]:
         .order_by(Message.confidence.asc())
         .all()
     )
+
+
+def company_stats(db: Session, company_id: int) -> dict:
+    """Aggregate Ticket counts for a Company's dashboard overview."""
+    tickets = db.query(Ticket).filter(Ticket.company_id == company_id)
+    return {
+        "tickets_total": tickets.count(),
+        "tickets_open": tickets.filter(
+            Ticket.status == TicketStatus.OPEN
+        ).count(),
+        "tickets_pending": tickets.filter(
+            Ticket.status == TicketStatus.PENDING
+        ).count(),
+        "tickets_resolved": tickets.filter(
+            Ticket.status == TicketStatus.RESOLVED
+        ).count(),
+        "tickets_closed": tickets.filter(
+            Ticket.status == TicketStatus.CLOSED
+        ).count(),
+        "tickets_escalated": tickets.filter(Ticket.escalated.is_(True)).count(),
+        "review_queue": len(list_review_queue(db, company_id)),
+    }

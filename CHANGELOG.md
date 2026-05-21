@@ -5,6 +5,11 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
+### Chunk 3d — dashboard stats from tickets · `3069729`+
+- `routes/dashboard.py` `/stats` now reports Ticket counts (by status,
+  escalated, review-queue depth) via `ticket_service.company_stats`,
+  replacing the `emails`-table counts.
+
 ### Chunk 3c — worker ingests into the domain model
 - `email_worker.py` rewritten: ingests email via `ticket_service`
   (`find_or_open_ticket` threads replies by In-Reply-To and reopens

@@ -87,7 +87,7 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/stats` | **[change]** Counts by Ticket status, escalation count, queue depth. Tenant-scoped. |
+| GET | `/stats` | **[done]** Ticket counts by status, escalated count, review-queue depth. Tenant-scoped. |
 | GET | `/analytics` | **[new]** Time-series: volume, avg confidence, intent breakdown, resolution time. |
 
 ## Customers — `/api/v1/customers`
