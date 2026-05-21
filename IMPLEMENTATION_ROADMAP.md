@@ -6,6 +6,10 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
+**Current checkpoint:** Phase 2 chunk 2 complete on
+`feature/phase-2-domain-model` (commit `0660ee0`). Next: Phase 2 chunk 3 — the
+`emails` → Ticket/Message cutover. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+
 ---
 
 ## Phase 0 — Safety & cleanup  ☑ DONE
