@@ -24,8 +24,9 @@ linked docs before changing code.
   `DATABASE_SCHEMA.md` as work ships.
 
 ## Current checkpoint
-Phase 2 chunk 2 done · branch `feature/phase-2-domain-model` · commit
-`0660ee0`. Next: Phase 2 chunk 3 — the `emails` → Ticket/Message cutover.
+Phase 2 chunk 3 complete · branch `feature/phase-2-domain-model` · commit
+`902a092`. The legacy `emails` flow is fully retired. Next: Phase 2 chunk 4
+— audit logging. See `CURRENT_TASKS.md`.
 
 ## Project facts
 - Database: **Neon managed Postgres** (cloud); `DATABASE_URL` in `.env`.
