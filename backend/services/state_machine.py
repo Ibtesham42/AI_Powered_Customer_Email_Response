@@ -32,7 +32,11 @@ TICKET_TRANSITIONS: dict[str, set[str]] = {
 REVIEW_TRANSITIONS: dict[str, set[str]] = {
     ReviewStatus.AWAITING_AI: {ReviewStatus.DRAFTED, ReviewStatus.NOT_APPLICABLE},
     ReviewStatus.DRAFTED: {ReviewStatus.DRAFTED, ReviewStatus.REVIEWED},
-    ReviewStatus.REVIEWED: {ReviewStatus.DRAFTED, ReviewStatus.SENT},
+    ReviewStatus.REVIEWED: {
+        ReviewStatus.DRAFTED,
+        ReviewStatus.REVIEWED,  # re-edit an already-reviewed draft
+        ReviewStatus.SENT,
+    },
     ReviewStatus.SENT: set(),
     ReviewStatus.NOT_APPLICABLE: set(),
 }

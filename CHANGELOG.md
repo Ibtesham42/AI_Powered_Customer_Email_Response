@@ -5,6 +5,16 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
+### Chunk 3b — ticket/message routes
+- `routes/tickets.py` (review queue, list, ticket detail) + `routes/messages.py`
+  (regenerate / edit / approve / reject / send) — thin over the services.
+- `backend/serializers.py`; `InvalidTransitionError` → HTTP 409 exception
+  handler in `main.py`.
+
+### Chunk 3a — Message-based AI draft generation · `5f5eb9b`
+- `ai_service.generate_draft` + `get_ticket_history`;
+  `ticket_service.record_ai_draft`.
+
 ### Chunk 2 — state machines + service layer · `0660ee0`
 - `backend/services/state_machine.py` — ticket-lifecycle and message-review
   transition graphs with `InvalidTransitionError` validation.

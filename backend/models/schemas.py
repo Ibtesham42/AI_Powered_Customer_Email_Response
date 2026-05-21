@@ -53,3 +53,15 @@ class LoginRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class DraftUpdate(BaseModel):
+    """Body for editing/rewriting an AI draft."""
+
+    text: str
+
+
+class RejectRequest(BaseModel):
+    """Body for rejecting a draft (escalates the Ticket)."""
+
+    reason: str | None = None

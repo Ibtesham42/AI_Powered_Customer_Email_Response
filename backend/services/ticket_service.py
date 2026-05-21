@@ -36,6 +36,16 @@ def get_or_create_customer(
     return customer
 
 
+def get_customer(
+    db: Session, company_id: int, customer_id: int
+) -> Customer | None:
+    return (
+        db.query(Customer)
+        .filter(Customer.id == customer_id, Customer.company_id == company_id)
+        .first()
+    )
+
+
 # ---------------- Tickets ----------------
 def get_ticket_for_thread(
     db: Session, company_id: int, thread_id: str
@@ -168,3 +178,38 @@ def record_ai_draft(
     db.commit()
     db.refresh(message)
     return message
+
+
+def get_message(db: Session, company_id: int, message_id: int) -> Message | None:
+    return (
+        db.query(Message)
+        .filter(Message.id == message_id, Message.company_id == company_id)
+        .first()
+    )
+
+
+def list_ticket_messages(
+    db: Session, company_id: int, ticket_id: int
+) -> list[Message]:
+    return (
+        db.query(Message)
+        .filter(Message.company_id == company_id, Message.ticket_id == ticket_id)
+        .order_by(Message.id.asc())
+        .all()
+    )
+
+
+def list_review_queue(db: Session, company_id: int) -> list[Message]:
+    """Inbound Messages awaiting human review: DRAFTED, on a non-escalated
+    Ticket, lowest confidence first."""
+    return (
+        db.query(Message)
+        .join(Ticket, Message.ticket_id == Ticket.id)
+        .filter(
+            Message.company_id == company_id,
+            Message.review_status == ReviewStatus.DRAFTED,
+            Ticket.escalated.is_(False),
+        )
+        .order_by(Message.confidence.asc())
+        .all()
+    )

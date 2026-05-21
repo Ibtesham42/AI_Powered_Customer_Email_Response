@@ -1,8 +1,8 @@
 # Current Tasks
 
-Active checkpoint: **Phase 2 chunk 3 in progress** on
-`feature/phase-2-domain-model` (commit `5f5eb9b`, working tree clean).
-Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
+Active checkpoint: **Phase 2 chunk 3 in progress — 3a, 3b done** on
+`feature/phase-2-domain-model`. Context: `PROJECT_STATE.md` ·
+Plan: `IMPLEMENTATION_ROADMAP.md`.
 
 ## In progress: Phase 2 — Chunk 3 (retire the `emails` flow)
 
@@ -25,11 +25,10 @@ app works throughout.
 ### Sub-steps
 - ☑ **3a** — Message-based AI generation: `ai_service.generate_draft` +
   `get_ticket_history`; `ticket_service.record_ai_draft`. (`5f5eb9b`)
-- ☐ **3b** — `routes/tickets.py` + `routes/messages.py` (essentials): ticket
-  review queue, ticket + messages detail, message review actions
-  (regenerate / edit draft / approve / reject / send). Register under
-  `/api/v1`. Keep routes thin over `ticket_service` + `state_machine` +
-  `ai_service`.
+- ☑ **3b** — `routes/tickets.py` (review queue, list, detail) +
+  `routes/messages.py` (regenerate / edit / approve / reject / send), thin
+  over the services. `serializers.py` added; `InvalidTransitionError` → HTTP
+  409 via an app exception handler.
 - ☐ **3c** — `email_worker.py`: ingest via `ticket_service`
   (`get_or_create_customer` → find or `open_ticket` by thread → `add_message`),
   using `INGEST_COMPANY_ID` (add it to `backend/config.py`).
@@ -42,7 +41,7 @@ app works throughout.
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`; confirm branch `feature/phase-2-domain-model` and
    `alembic current` = `76870d572c26`.
-2. Resume at **sub-step 3b** (ticket/message routes). Keep the legacy
+2. Resume at **sub-step 3c** (worker ingest). Keep the legacy
    `/api/v1/email/*` routes live until 3e switches the dashboard; remove
    them in 3f.
 3. Commit per sub-step; sync `IMPLEMENTATION_ROADMAP.md`, `CHANGELOG.md`,

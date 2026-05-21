@@ -66,9 +66,9 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/` | **[new]** List Tickets. Filters: `status`, `escalated`, `intent`, `customer_id`, `assigned_to`. |
-| GET | `/queue` | **[change]** Review queue: Tickets with a `drafted` Message awaiting review, sorted ascending by confidence. Replaces `/email/todo`. |
-| GET | `/{id}` | **[new]** Ticket + all its Messages + Customer + Memory summaries. |
+| GET | `/` | **[done]** List Tickets. Filter: `status` (other filters deferred). |
+| GET | `/queue` | **[done]** Review queue: DRAFTED Messages on non-escalated Tickets, lowest confidence first, enriched with ticket subject + customer email. Replaces `/email/todo`. |
+| GET | `/{id}` | **[done]** Ticket + Customer + full Message thread. (Memory summaries: Phase 5.) |
 | PATCH | `/{id}` | **[new]** Update status / assignee. |
 | POST | `/{id}/escalate` | **[new]** Manually escalate. |
 | POST | `/{id}/resolve` | **[new]** Mark resolved (triggers summary generation). |
@@ -77,11 +77,11 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/{id}/regenerate` | **[new]** Re-run the AI Draft for an inbound Message. |
-| PUT | `/{id}/draft` | **[change]** Edit/Rewrite the Draft → `review_status = reviewed`. Was `/email/update-reply`. |
-| POST | `/{id}/approve` | **[new]** Accept the Draft as-is → `reviewed`. |
-| POST | `/{id}/reject` | **[new]** Discard the Draft → escalate the Ticket. |
-| POST | `/{id}/send` | **[change]** Send the reviewed reply via the Company mailbox → `sent`. Was `/email/send/{id}`. |
+| POST | `/{id}/regenerate` | **[done]** Re-run the AI Draft for an inbound Message. |
+| PUT | `/{id}/draft` | **[done]** Edit/rewrite the Draft (body `{text}`) → `review_status = reviewed`. |
+| POST | `/{id}/approve` | **[done]** Accept the Draft as-is → `reviewed`. |
+| POST | `/{id}/reject` | **[done]** Discard the Draft → escalate the Ticket. |
+| POST | `/{id}/send` | **[done]** Send the reviewed reply over SMTP → `sent`; opens an outbound Message; Ticket → `pending`. |
 
 ## Dashboard & analytics — `/api/v1/dashboard`
 
