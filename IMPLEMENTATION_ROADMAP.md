@@ -57,9 +57,11 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ Create `customers`, `tickets`, `messages` (+ `audit_logs`) models +
   migration `76870d572c26`. `backend/models/enums.py` holds the StrEnum
   value sets (ticket status, review status, direction, intent).
-- ☐ Implement the two state machines (ticket lifecycle, message review).
+- ☑ Implement the two state machines — `backend/services/state_machine.py`
+  (ticket lifecycle, message review) with transition validation.
 - ☐ Data migration: backfill from `emails` (see DATABASE_SCHEMA.md §migration).
-- ☐ Repository layer: every query tenant-scoped by `company_id`.
+- ☑ Tenant-scoped service layer — `backend/services/ticket_service.py`;
+  every query filtered by `company_id`.
 - ☐ Rewrite Ticket/Message routes; drop the old `emails` table.
 - ☐ Write security-relevant events to `audit_logs` (table created in chunk 1).
 
