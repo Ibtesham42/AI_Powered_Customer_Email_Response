@@ -1,52 +1,62 @@
 # Current Tasks
 
-Active checkpoint: **Phase 2, chunk 2 complete** on
-`feature/phase-2-domain-model` (commit `0660ee0`, working tree clean).
+Active checkpoint: **Phase 2 chunk 3 in progress** on
+`feature/phase-2-domain-model` (commit `5f5eb9b`, working tree clean).
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
-## Next: Phase 2 — Chunk 3 (the `emails` → Ticket/Message cutover)
+## In progress: Phase 2 — Chunk 3 (retire the `emails` flow)
 
-The largest, highest-risk chunk. Sub-step it; keep the app working throughout.
-The new models and services (`ticket_service`, `state_machine`) are built and
-tested — this chunk wires them in and retires the legacy `emails` path.
+Replaces the legacy `emails` table + `routes/email.py` + the emails-based
+`ai_service` path with the Customer/Ticket/Message model. New code is
+**additive**; the legacy path is removed only in the final sub-step, so the
+app works throughout.
 
-1. **Ticket/Message routes** — replace `backend/routes/email.py` with
-   ticket/message routes: list/get tickets, the review actions
-   (approve / edit / reject / regenerate / send). Use `ticket_service` + the
-   state machine. Tenant-scope via `get_current_user`'s `company_id`.
-2. **AI service** — update `backend/services/ai_service.py` to read/write
-   `Message` / `Ticket` instead of `Email`.
-3. **Worker** — update `scripts/email_worker.py` ingestion:
-   `get_or_create_customer` → find or `open_ticket` (by thread) → `add_message`.
-4. **Dashboard route** — update `backend/routes/dashboard.py` stats to count
-   tickets/messages.
-5. **Streamlit** — update `dashboard_app.py`: its endpoints and field names
-   change with the new routes.
-6. **Data migration** — backfill `emails` rows → `customers` / `tickets` /
-   `messages` (see `DATABASE_SCHEMA.md` → "Migration from the current schema").
-7. **Drop `emails`** — final Alembic migration, once the backfill is verified.
+### Grilled decisions (do not re-litigate)
+- **Coherent switch** — no parallel old/new routes; the Streamlit dashboard
+  (the only API consumer) is updated in lockstep.
+- **Worker tenancy** — the worker attaches ingested email to the Company named
+  by a new `INGEST_COMPANY_ID` config var (per-company mailboxes are Phase 3).
+- **Essentials-only routes** — build just what replaces `/email`; defer
+  customers list / ticket assign / analytics.
+- **Minimal dashboard re-point** — change endpoints + field names only; no UI
+  redesign (Next.js replaces the dashboard in Phase 7).
+- **No data backfill** — `emails` is empty (0 rows); just drop the table.
+
+### Sub-steps
+- ☑ **3a** — Message-based AI generation: `ai_service.generate_draft` +
+  `get_ticket_history`; `ticket_service.record_ai_draft`. (`5f5eb9b`)
+- ☐ **3b** — `routes/tickets.py` + `routes/messages.py` (essentials): ticket
+  review queue, ticket + messages detail, message review actions
+  (regenerate / edit draft / approve / reject / send). Register under
+  `/api/v1`. Keep routes thin over `ticket_service` + `state_machine` +
+  `ai_service`.
+- ☐ **3c** — `email_worker.py`: ingest via `ticket_service`
+  (`get_or_create_customer` → find or `open_ticket` by thread → `add_message`),
+  using `INGEST_COMPANY_ID` (add it to `backend/config.py`).
+- ☐ **3d** — `routes/dashboard.py`: compute stats from tickets/messages.
+- ☐ **3e** — `dashboard_app.py`: re-point to the new endpoints (minimal).
+- ☐ **3f** — drop the legacy path: delete `models/email.py`,
+  `routes/email.py`, the legacy `ai_service` functions; remove their imports
+  from `main.py` + `alembic/env.py`; Alembic migration to DROP `emails`.
 
 ## Immediate next steps for the next session
-
-1. Read `PROJECT_STATE.md`, `CONTEXT.md`, `docs/adr/`.
-2. `git checkout feature/phase-2-domain-model`; confirm
+1. Read `PROJECT_STATE.md`; confirm branch `feature/phase-2-domain-model` and
    `alembic current` = `76870d572c26`.
-3. Begin Chunk 3 sub-step 1 (ticket/message routes) — additive where possible;
-   keep the old `/api/v1/email/*` routes alive until the dashboard is switched,
-   then remove them.
-4. Commit per sub-step; update `IMPLEMENTATION_ROADMAP.md`, `CHANGELOG.md`,
-   `API_DOCUMENTATION.md`, `DATABASE_SCHEMA.md` as each sub-step ships.
+2. Resume at **sub-step 3b** (ticket/message routes). Keep the legacy
+   `/api/v1/email/*` routes live until 3e switches the dashboard; remove
+   them in 3f.
+3. Commit per sub-step; sync `IMPLEMENTATION_ROADMAP.md`, `CHANGELOG.md`,
+   `API_DOCUMENTATION.md`, `DATABASE_SCHEMA.md`.
+4. Test via direct route-function calls (`TestClient` is broken — see
+   `PROJECT_STATE.md`). `ai_service.generate_draft` needs the RAG index +
+   Groq, so it is not unit-testable offline — verify it via the running app.
 
-## After Phase 2 Chunk 3
-
+## After Chunk 3
 - **Chunk 4** — write security-relevant events to `audit_logs`.
 - Merge `feature/phase-2-domain-model` → `main` (on the user's explicit OK).
-- **Phase 3** — mailbox connection (encrypted App Password), DB-backed queue
-  (retire `email_queue.json`), forgot/reset password.
+- **Phase 3** — mailbox connection, DB-backed queue, password reset.
 
-## Known blockers / cautions
-
-- `TestClient` is broken — test via direct route-function calls (see
-  `PROJECT_STATE.md` → Known bugs).
-- Chunk 3 touches many files; if a step breaks the app, stop and fix before
-  proceeding — do not stack broken steps.
+## Cautions
+- Chunk 3 touches many files — if a sub-step breaks the app, fix it before
+  proceeding; do not stack broken steps.
+- New code stays additive; the `emails` path remains runnable until 3f.

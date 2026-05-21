@@ -63,10 +63,12 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   value sets (ticket status, review status, direction, intent).
 - ☑ Implement the two state machines — `backend/services/state_machine.py`
   (ticket lifecycle, message review) with transition validation.
-- ☐ Data migration: backfill from `emails` (see DATABASE_SCHEMA.md §migration).
+- ☑ Data migration — N/A: the `emails` table is empty (0 rows), so there is
+  no backfill. The table itself is dropped in chunk 3.
 - ☑ Tenant-scoped service layer — `backend/services/ticket_service.py`;
   every query filtered by `company_id`.
-- ☐ Rewrite Ticket/Message routes; drop the old `emails` table.
+- ◐ Rewrite Ticket/Message routes; drop the old `emails` table — chunk 3 in
+  progress (3a done; 3b–3f pending, see `CURRENT_TASKS.md`).
 - ☐ Write security-relevant events to `audit_logs` (table created in chunk 1).
 
 ## Phase 3 — Mailbox & ingestion
