@@ -149,3 +149,22 @@ def transition_message(db: Session, message: Message, new_status: str) -> Messag
     db.commit()
     db.refresh(message)
     return message
+
+
+def record_ai_draft(
+    db: Session,
+    message: Message,
+    draft: str,
+    confidence: int | None = None,
+    intent: str | None = None,
+) -> Message:
+    """Store an AI draft on an inbound Message and move it to DRAFTED."""
+    assert_review_transition(message.review_status, ReviewStatus.DRAFTED)
+    message.ai_draft = draft
+    message.confidence = confidence
+    if intent is not None:
+        message.intent = intent
+    message.review_status = ReviewStatus.DRAFTED
+    db.commit()
+    db.refresh(message)
+    return message
