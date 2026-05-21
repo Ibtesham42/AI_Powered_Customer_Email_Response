@@ -1,20 +1,22 @@
+
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from backend.database import Base
-from backend.models.company import Company   #  ADD THIS
+from backend.models.company import Company 
 
 
 class Email(Base):
     __tablename__ = "emails"
     __table_args__ = {"extend_existing": True}
 
-    message_id = Column(String, nullable=True)
-    thread_id = Column(String, nullable=True)
     id = Column(Integer, primary_key=True, index=True)
 
     sender = Column(String)
     subject = Column(String)
     body = Column(String)
+
+    message_id = Column(String, nullable=True)
+    thread_id = Column(String, nullable=True)
 
     company_id = Column(Integer, ForeignKey("companies.id"))
     company = relationship("Company")
@@ -23,3 +25,6 @@ class Email(Base):
 
     ai_reply = Column(String, nullable=True)
     final_reply = Column(String, nullable=True)
+
+    confidence = Column(Integer, default=0)   
+    assigned_to = Column(Integer, nullable=True)  

@@ -1,0 +1,5 @@
+# Development tooling. Install with:
+#   pip install -r requirements-dev.txt
+ruff
+black
+mypy

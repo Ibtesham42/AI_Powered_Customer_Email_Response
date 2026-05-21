@@ -1,5 +1,9 @@
-from sentence_transformers import SentenceTransformer
+import logging
+
 import torch
+from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingModel:
@@ -13,7 +17,7 @@ class EmbeddingModel:
             device=device
         )
 
-        print("Embedding model running on:", device)
+        logger.info("Embedding model running on %s", device)
 
     def embed(self, texts):
 

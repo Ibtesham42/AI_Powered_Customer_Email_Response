@@ -1,0 +1,28 @@
+# Tooling configuration. Linting/formatting/type-checking are introduced in
+# Phase 0 as a foundation; strictness is ramped up per-module over later phases
+# (see IMPLEMENTATION_ROADMAP.md). The codebase is not expected to pass a strict
+# mypy run yet.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = ["venv", "alembic/versions", "notebook"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",  # line length is handled by the formatter; prompts have long strings
+    "B008",  # FastAPI's Depends() in defaults is the intended pattern
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+extend-exclude = "venv|alembic/versions|notebook"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_return_any = false
+exclude = ["venv", "alembic", "notebook"]

@@ -214,6 +214,15 @@ venv/
 # # Project data
 data/
 
+# Runtime database and AI work queue (not version controlled)
+saas.db
+email_queue.json
+
+# Claude Code local tooling (.claude/agents/ is intentionally tracked)
+.claude/settings.local.json
+.claude/skills/
+skills-lock.json
+
 # Vector database / embeddings
 vector_store/
 

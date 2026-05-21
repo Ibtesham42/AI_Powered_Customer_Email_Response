@@ -1,0 +1,107 @@
+# API Documentation
+
+Target REST API. All routes are versioned under `/api/v1`. All responses are
+JSON. All non-auth routes require `Authorization: Bearer <access_token>` and
+are automatically scoped to the caller's Company.
+
+Legend: **[now]** exists today (possibly under a different path) ·
+**[new]** to be built · **[change]** exists but must change.
+
+## Conventions
+
+- **Auth**: Bearer access token. Expired access token → `401`; client uses the
+  refresh token to get a new one.
+- **Errors**: consistent envelope — `{ "error": { "code": "...",
+  "message": "...", "details": {...} } }`.
+- **Tenant scope**: `company_id` is taken from the token, never from the
+  request body or query. Routes never accept a `company_id` parameter.
+- **RBAC**: routes marked *(Owner)* require the `owner` role.
+- **Pagination**: list endpoints accept `?limit=&cursor=`.
+
+## Auth — `/api/v1/auth`
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/signup` | **[change]** Always creates a new Company; caller becomes its Owner. Body: full_name, company_name, email, phone, password, verify_password, address, city, state, country, postal_code. Returns access + refresh tokens. Rate-limited. |
+| POST | `/login` | **[change]** Returns access + refresh tokens. Rate-limited. |
+| POST | `/refresh` | **[new]** Exchange a valid refresh token for a new access token (rotates the refresh token). |
+| POST | `/logout` | **[new]** Revoke the current refresh token. |
+| POST | `/forgot-password` | **[new]** Sends a reset link via the transactional email provider. Rate-limited. Always returns `200` (no account enumeration). |
+| POST | `/reset-password` | **[new]** Body: reset token + new password. |
+| GET  | `/me` | **[now]** Current User + Company context. |
+
+## Company & users — `/api/v1/company`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/` | **[new]** Company profile + address. |
+| PATCH | `/` | **[new]** *(Owner)* Update Company profile. |
+| GET | `/users` | **[new]** List Users in the Company. |
+
+## Mailbox — `/api/v1/mailbox`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/` | **[new]** Connection status (never returns the credential). |
+| POST | `/connect` | **[new]** *(Owner)* Body: email_address, app_password. Verifies IMAP/SMTP login, stores the credential encrypted. |
+| POST | `/test` | **[new]** Re-verify the stored connection. |
+| DELETE | `/` | **[new]** *(Owner)* Disconnect the mailbox. |
+
+## Knowledge base — `/api/v1/kb`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/documents` | **[new]** List KB documents + index status. |
+| POST | `/documents` | **[change]** Upload a file (PDF/DOCX/CSV/TXT). Was `/data/upload`; replace the synchronous `subprocess` train with a background index task. |
+| POST | `/documents/url` | **[new]** Ingest website/page content by URL. |
+| POST | `/documents/faq` | **[new]** Add an FAQ entry (question + answer). |
+| DELETE | `/documents/{id}` | **[new]** Remove a document and its chunks. |
+| POST | `/search` | **[new]** Debug: semantic search over this Company's KB. |
+
+## Tickets — `/api/v1/tickets`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/` | **[new]** List Tickets. Filters: `status`, `escalated`, `intent`, `customer_id`, `assigned_to`. |
+| GET | `/queue` | **[change]** Review queue: Tickets with a `drafted` Message awaiting review, sorted ascending by confidence. Replaces `/email/todo`. |
+| GET | `/{id}` | **[new]** Ticket + all its Messages + Customer + Memory summaries. |
+| PATCH | `/{id}` | **[new]** Update status / assignee. |
+| POST | `/{id}/escalate` | **[new]** Manually escalate. |
+| POST | `/{id}/resolve` | **[new]** Mark resolved (triggers summary generation). |
+
+## Messages & review — `/api/v1/messages`
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/{id}/regenerate` | **[new]** Re-run the AI Draft for an inbound Message. |
+| PUT | `/{id}/draft` | **[change]** Edit/Rewrite the Draft → `review_status = reviewed`. Was `/email/update-reply`. |
+| POST | `/{id}/approve` | **[new]** Accept the Draft as-is → `reviewed`. |
+| POST | `/{id}/reject` | **[new]** Discard the Draft → escalate the Ticket. |
+| POST | `/{id}/send` | **[change]** Send the reviewed reply via the Company mailbox → `sent`. Was `/email/send/{id}`. |
+
+## Dashboard & analytics — `/api/v1/dashboard`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/stats` | **[change]** Counts by Ticket status, escalation count, queue depth. Tenant-scoped. |
+| GET | `/analytics` | **[new]** Time-series: volume, avg confidence, intent breakdown, resolution time. |
+
+## Customers — `/api/v1/customers`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/` | **[new]** List Customers. |
+| GET | `/{id}` | **[new]** Customer + all their Tickets (the conversation history view). |
+
+## System
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/health` | **[now]** Liveness. |
+| GET | `/health/ready` | **[new]** Readiness — DB + dependencies reachable. |
+
+## Routes to remove
+
+- `backend/routes/ai.py` — dead/broken (`RAGPipeline(user_id=...)`, status
+  `"replied"`). Delete; `email.py`/`messages` already cover it.
+- `email_queue.json` and its helpers — replaced by the DB-backed queue.

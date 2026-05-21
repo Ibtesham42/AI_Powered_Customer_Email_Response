@@ -9,3 +9,4 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     company_id = Column(Integer, ForeignKey("companies.id"))
+    role = Column(String, default="agent")

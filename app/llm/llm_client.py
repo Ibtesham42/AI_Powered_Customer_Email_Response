@@ -1,5 +1,10 @@
+import logging
+
 from groq import Groq
+
 from app.utils.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -10,7 +15,7 @@ class LLMClient:
 
         self.model = "llama-3.3-70b-versatile"
 
-        print("LLM connected:", self.model)
+        logger.info("LLM client ready (model=%s)", self.model)
 
 
     def generate(self, prompt):
@@ -33,15 +38,9 @@ class LLMClient:
         full_response = ""
 
         for chunk in stream:
-
             if chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content
 
-                token = chunk.choices[0].delta.content
-
-                print(token, end="", flush=True)
-
-                full_response += token
-
-        print("\n")
+        logger.debug("LLM generation complete (%d chars)", len(full_response))
 
         return full_response

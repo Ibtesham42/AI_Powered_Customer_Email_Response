@@ -25,6 +25,7 @@ streamlit
 fastapi==0.110.0
 uvicorn==0.29.0
 sqlalchemy==2.0.29
+alembic
 
 #  AUTH
 passlib[bcrypt]==1.7.4

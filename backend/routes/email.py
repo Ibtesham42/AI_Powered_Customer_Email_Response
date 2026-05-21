@@ -1,16 +1,18 @@
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import asc
 from sqlalchemy.orm import Session
-
-from backend.database import get_db
-from backend.models.email import Email
-from backend.auth.dependencies import get_current_user
 
 from app.email.email_queue import add_to_queue
 from app.email.email_sender import EmailSender
 from app.utils.config import Config
+from backend.auth.dependencies import get_current_user
+from backend.database import get_db
+from backend.logging_config import get_logger
+from backend.models.email import Email
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 # ---------------- GET ALL ----------------
@@ -126,8 +128,8 @@ def send_email(email_id: int, user=Depends(get_current_user), db: Session = Depe
         Config.EMAIL_PASS
     )
 
-    print("Sending to:", to_email)
-    print("Message ID:", email.message_id)
+    logger.info("Sending reply for email %s to %s", email.id, to_email)
+    logger.debug("Original message_id: %s", email.message_id)
 
     sender.send_email(
         to_email=to_email,
@@ -149,9 +151,11 @@ def get_todo(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     return db.query(Email).filter(
         Email.company_id == user["company_id"],
-        Email.status == "AI_GENERATED"
-    ).order_by(Email.id.desc()).all()
-
+        Email.status == "AI_GENERATED",
+        
+    ).order_by(
+        asc(Email.confidence)  
+    ).all()
 
 # ---------------- STATS ----------------
 @router.get("/stats")
@@ -169,3 +173,30 @@ def get_stats(user=Depends(get_current_user), db: Session = Depends(get_db)):
         "sent": base.filter(Email.status == "SENT").count(),
     }
 
+
+@router.get("/thread/{thread_id}")
+def get_thread(thread_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+
+    emails = db.query(Email).filter(
+        Email.thread_id == thread_id,
+        Email.company_id == user["company_id"]
+    ).order_by(Email.id.asc()).all()
+
+    return emails
+
+
+@router.post("/assign")
+def assign_email(email_id: int, agent_id: int, user=Depends(get_current_user), db: Session = Depends(get_db)):
+
+    email = db.query(Email).filter(
+        Email.id == email_id,
+        Email.company_id == user["company_id"]
+    ).first()
+
+    if not email:
+        return {"error": "Email not found"}
+
+    email.assigned_to = agent_id
+    db.commit()
+
+    return {"message": f"Assigned to agent {agent_id}"}

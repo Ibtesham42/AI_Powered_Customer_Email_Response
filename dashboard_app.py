@@ -74,11 +74,33 @@ else:
 
     st.markdown("---")
 
+    # ---------- UPLOAD ----------
+    st.markdown("## Upload Knowledge Base")
+
+    uploaded_file = st.file_uploader("Upload PDF / DOCX")
+
+    if uploaded_file:
+        with st.spinner("Training AI..."):
+            res = requests.post(
+                f"{BASE_URL}/data/upload",
+                headers=headers,
+                files={
+                    "file": (uploaded_file.name, uploaded_file, uploaded_file.type)
+                }
+            )
+
+        if res.status_code == 200:
+            st.success("AI trained successfully!")
+        else:
+            st.error("Upload failed")
+
+    st.markdown("---")
+
     # ---------- HEADER ----------
     col1, col2 = st.columns([8, 1])
 
     with col1:
-        st.subheader("Pending Emails for Human Review")
+        st.subheader("Pending Emails (Priority Sorted)")
 
     with col2:
         if st.button("Refresh"):
@@ -110,28 +132,65 @@ else:
                 st.write(email["body"][:300] + "...")
                 st.caption(f"Status: {email['status']}")
 
-                #  CONFIDENCE DISPLAY
+                # ---------- CONFIDENCE ----------
                 conf = email.get("confidence", 0)
 
-                if conf > 80:
-                    st.success(f"Confidence: {conf}%")
-                elif conf > 50:
-                    st.warning(f"Confidence: {conf}%")
+                if conf < 50:
+                    st.error(f"🔥 URGENT | Low Confidence: {conf}%")
+                elif conf < 80:
+                    st.warning(f"⚠️ Medium Confidence: {conf}%")
                 else:
-                    st.error(f"Confidence: {conf}%")
+                    st.success(f"✅ High Confidence: {conf}%")
 
-            # ---------- STATUS ----------
+                # ---------- THREAD ----------
+                if email.get("thread_id"):
+
+                    with st.expander("View Conversation"):
+
+                        try:
+                            thread_res = requests.get(
+                                f"{BASE_URL}/email/thread/{email['thread_id']}",
+                                headers=headers
+                            )
+
+                            thread_data = thread_res.json()
+
+                            for t in thread_data:
+                                st.markdown(f"🧑 Customer: {t['body']}")
+
+                                if t.get("ai_reply"):
+                                    st.markdown(f"🧑‍💻 Support: {t['ai_reply']}")
+
+                        except:
+                            st.error("Failed to load thread")
+
+            # ---------- RIGHT PANEL ----------
             with right:
-                if email["status"] == "AI_GENERATED":
-                    st.warning("Needs Review")
-                elif email["status"] == "HUMAN_REVIEWED":
-                    st.info("Edited")
-                elif email["status"] == "SENT":
-                    st.success("Sent")
+                st.caption(f"Status: {email['status']}")
+
+                # ---------- ASSIGN ----------
+                agent_id = st.number_input(
+                    "Assign to Agent",
+                    min_value=1,
+                    step=1,
+                    key=f"assign_input_{email['id']}"
+                )
+
+                if st.button("Assign", key=f"assign_{email['id']}"):
+                    requests.post(
+                        f"{BASE_URL}/email/assign",
+                        params={
+                            "email_id": email["id"],
+                            "agent_id": agent_id
+                        },
+                        headers=headers
+                    )
+                    st.success("Assigned")
+                    st.rerun()
 
             # ---------- EDIT ----------
             edited_reply = st.text_area(
-                "Draft Reply (Editable)",
+                "Draft Reply",
                 value=email.get("ai_reply", ""),
                 key=f"edit_{email['id']}"
             )
@@ -156,7 +215,6 @@ else:
 
                 with st.spinner("Sending..."):
 
-                    # save latest reply
                     requests.put(
                         f"{BASE_URL}/email/update-reply",
                         params={
@@ -166,7 +224,6 @@ else:
                         headers=headers
                     )
 
-                    # send
                     requests.post(
                         f"{BASE_URL}/email/send/{email['id']}",
                         headers=headers

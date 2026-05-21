@@ -1,19 +1,24 @@
-from app.rag.retriever import Retriever
-from app.rag.embeddings import EmbeddingModel
 import json
+import logging
+
 import faiss
 import torch
+
+from app.rag.embeddings import EmbeddingModel
+from app.rag.retriever import Retriever
+
+logger = logging.getLogger(__name__)
 
 
 class RAGPipeline:
 
     def __init__(self, company_id):
 
-        print("Loading RAG system for:", company_id)
+        logger.info("Loading RAG system for company %s", company_id)
 
         self.embedding_model = EmbeddingModel()
 
-        vector_path = f"data/users/LabData/vector_store"
+        vector_path = "data/users/LabData/vector_store"
 
         index_path = f"{vector_path}/faiss_index"
         docs_path = f"{vector_path}/docs.json"
@@ -33,7 +38,7 @@ class RAGPipeline:
             self.documents
         )
 
-        print("Loaded", len(self.documents), "documents")
+        logger.info("Loaded %d documents for retrieval", len(self.documents))
 
 
     def retrieve(self, query):
