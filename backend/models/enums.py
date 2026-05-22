@@ -41,3 +41,17 @@ class Intent(StrEnum):
     SERVICE_INQUIRY = "service_inquiry"
     COMPLAINT = "complaint"
     GENERAL_SUPPORT = "general_support"
+
+
+class MailboxProvider(StrEnum):
+    """How a Company's support mailbox authenticates."""
+
+    GMAIL_APP_PASSWORD = "gmail_app_password"
+    # Future: GMAIL_OAUTH = "gmail_oauth" — see ADR-0002.
+
+
+class MailboxStatus(StrEnum):
+    """Health of a connected mailbox."""
+
+    CONNECTED = "connected"  # last IMAP/SMTP check succeeded
+    ERROR = "error"  # last check failed — needs reconnection

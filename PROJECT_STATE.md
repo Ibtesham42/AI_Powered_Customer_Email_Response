@@ -1,8 +1,9 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 2 complete**
-(chunks 1–4). Phase plan: `IMPLEMENTATION_ROADMAP.md` · Next work:
-`CURRENT_TASKS.md` · History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
+Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 1
+complete** (Phases 0–2 merged to `main`). Phase plan:
+`IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
+History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
 ## What this is
 
@@ -33,7 +34,10 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **Audit logging** — `audit_service.record()` writes an `AuditLog` row for
   `signup`, `login`, `login_failed`, `logout`, `message_sent` and
   `draft_rejected`. Audit-write failures are logged and swallowed.
-- **Migrations** — Alembic; current head `7d78ba51b1e8`.
+- **Mailbox model** — `mailboxes` table (one per Company); the App Password
+  is stored Fernet-encrypted via `backend/crypto.py`. Not yet wired to a
+  connect route or the worker — Phase 3 chunks 2–3.
+- **Migrations** — Alembic; current head `0e9582994b57`.
 
 ## Deployment status
 
@@ -45,8 +49,7 @@ managed Postgres.
 
 - Engine: **Neon managed Postgres** — `DATABASE_URL` in `.env`.
 - Tables: `companies`, `users`, `refresh_tokens`, `customers`, `tickets`,
-  `messages`, `audit_logs`, `alembic_version`. (The legacy `emails` table
-  was dropped in Chunk 3.)
+  `messages`, `audit_logs`, `mailboxes`, `alembic_version`.
 - pgvector: extension available on the instance; enabled in Phase 4.
 - Schema source of truth: Alembic (`alembic upgrade head`). No `create_all`.
 
@@ -73,8 +76,10 @@ managed Postgres.
 
 - `email_queue.json` JSON queue still in use — replaced by a DB-backed queue
   in Phase 3. (The legacy `emails` table/model/routes are gone.)
-- `CLAUDE.md` "Important gotchas" / structure notes are partly stale after
-  Phases 0–2 — a CLAUDE.md refresh is overdue.
+- Alembic autogenerate flags redundant `ix_<table>_id` indexes on
+  `audit_logs`, `customers`, `messages` and `tickets` — those models declare
+  `index=True` on the PK column but the DB never got the index. Harmless
+  noise; fix by dropping `index=True` from the PK columns.
 - `app/rag/rag_pipeline.py` hardcodes the `LabData` vector path — Phase 4.
 - `TestClient` is broken (see Known bugs).
 - ~4 pre-existing ruff warnings in not-yet-touched files.

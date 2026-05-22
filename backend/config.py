@@ -47,6 +47,12 @@ class Settings:
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # --- Mailbox credential encryption ---
+    # Fernet key used to encrypt stored mailbox App Passwords (see ADR-0002).
+    # Optional at startup so the app still runs without mailbox features; the
+    # crypto helper fails loudly on first use if it is missing or invalid.
+    MAILBOX_ENCRYPTION_KEY: str | None = os.getenv("MAILBOX_ENCRYPTION_KEY")
+
     # --- Email ingestion (interim — per-company mailboxes arrive in Phase 3) ---
     # The Company that inbound email from the single global mailbox belongs to.
     INGEST_COMPANY_ID: int | None = (

@@ -19,9 +19,8 @@ Tracked per chunk as the schema is implemented (see `IMPLEMENTATION_ROADMAP.md`)
   available and gets enabled in Phase 4. Schema is managed by Alembic —
   `alembic upgrade head`.
 - **Built**: `companies`, `users`, `refresh_tokens`, `customers`, `tickets`,
-  `messages`, `audit_logs`. The legacy `emails` table still exists in parallel
-  until the Phase 2 chunk 3 data migration retires it.
-- **Pending**: `mailboxes`, `password_reset_tokens` (Phase 3);
+  `messages`, `audit_logs`, `mailboxes`.
+- **Pending**: `password_reset_tokens` (Phase 3);
   `kb_documents`, `kb_chunks` (Phase 4).
 
 ## Enums

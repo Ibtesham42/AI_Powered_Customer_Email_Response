@@ -3,7 +3,19 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
+## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
+
+### Chunk 1 — mailboxes table + credential encryption
+- New `mailboxes` table (migration `0e9582994b57`) — one support mailbox per
+  Company; the App Password is stored Fernet-encrypted in
+  `encrypted_credential`, never plaintext (ADR-0002).
+- `backend/crypto.py` — Fernet `encrypt`/`decrypt`; key from the new
+  `MAILBOX_ENCRYPTION_KEY` env var, read lazily so the app still starts
+  without it (fails loudly on first use instead).
+- `backend/models/mailbox.py`; `MailboxProvider` / `MailboxStatus` enums.
+- `cryptography` pinned as a direct dependency.
+
+## Phase 2 — Domain model · merged to `main` (`a4d120c`)
 
 ### Chunk 4 — audit logging
 - `backend/services/audit_service.py` — `record()` writes one `AuditLog` row.

@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 2 complete on `feature/phase-2-domain-model`
-(chunks 1–4). Next: merge to `main` (on the user's OK), then Phase 3 —
-mailbox & ingestion. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 3 chunk 1 complete on `feature/phase-3-mailbox`
+— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 2 — mailbox connector
+abstraction + `/mailbox/connect`. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -72,10 +72,11 @@ mailbox & ingestion. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 - ☑ Write security-relevant events to `audit_logs` — chunk 4:
   `backend/services/audit_service.py`, events from the auth and message routes.
 
-## Phase 3 — Mailbox & ingestion
+## Phase 3 — Mailbox & ingestion  ◐ IN PROGRESS
 *Goal: per-Company email, safe credentials, safe queue.*
 
-- ☐ `mailboxes` table; Fernet/KMS encryption helper for credentials.
+- ☑ `mailboxes` table; Fernet encryption helper for credentials — chunk 1
+  (`backend/crypto.py`, migration `0e9582994b57`).
 - ☐ Mailbox connector abstraction (App Password impl now, OAuth-ready).
 - ☐ `/mailbox/connect` — verify IMAP/SMTP before saving.
 - ☐ Worker polls **each** Company's mailbox (remove hardcoded `company_id=1`
