@@ -5,6 +5,19 @@ each entry references its git commit.
 
 ## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
 
+### Chunk 4 — DB-backed AI queue
+- The AI queue is no longer a JSON file — it *is* the set of inbound
+  `Message`s with `review_status = awaiting_ai`.
+- `email_worker.py` `process_queue()` claims Messages with
+  `SELECT ... FOR UPDATE SKIP LOCKED`, one at a time; the row lock releases
+  only when `record_ai_draft` commits the move to `drafted`, so concurrent
+  workers never draft the same Message twice. A failed draft is logged and
+  retried next cycle; `MAX_DRAFTS_PER_CYCLE` bounds one cycle.
+- Removed `app/email/email_queue.py` and the `add_to_queue` enqueue call —
+  creating the inbound Message *is* the enqueue.
+- The legacy standalone `email_streamlit_ui.py` keeps its own
+  `app/queue/email_queue.py` (untouched until Phase 7).
+
 ### Chunk 3 — worker polls each Company's mailbox
 - `scripts/email_worker.py` rewritten: `poll_mailboxes()` loops over every
   connected `Mailbox`, builds a connector, fetches unread mail, ingests into

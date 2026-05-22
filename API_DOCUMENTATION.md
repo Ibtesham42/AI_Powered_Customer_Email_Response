@@ -108,4 +108,5 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 - `backend/routes/ai.py` — dead/broken (`RAGPipeline(user_id=...)`, status
   `"replied"`). Delete; `email.py`/`messages` already cover it.
-- `email_queue.json` and its helpers — replaced by the DB-backed queue.
+- `email_queue.json` and its helpers — **[done]** removed in Phase 3 chunk 4;
+  the queue is now `messages WHERE review_status = awaiting_ai`.

@@ -27,9 +27,8 @@ behind the current working app.
 
 ## Running things
 
-All commands must be run **from the repo root** — paths like `data/users/...`,
-`email_queue.json`, and `saas.db` are resolved relative to the current working directory,
-not the script location.
+All commands must be run **from the repo root** — paths like `data/users/...`
+are resolved relative to the current working directory, not the script location.
 
 ```bash
 # Activate the env first
@@ -80,8 +79,9 @@ HTTP. The standalone Streamlit apps are the legacy single-tenant path.
 Inbound email (email_worker.py polling each Company's mailbox over IMAP)
   -> get_or_create_customer; find_or_open_ticket (In-Reply-To threading)
   -> inbound Message on the Ticket, review_status=AWAITING_AI
-  -> add_to_queue() appends to email_queue.json
-  -> email_worker.py drains queue -> ai_service.generate_draft()
+       (an awaiting_ai Message *is* the AI queue — no separate store)
+  -> email_worker.py claims awaiting_ai Messages (FOR UPDATE SKIP LOCKED)
+       -> ai_service.generate_draft()
        -> get_rag_context()  (FAISS retrieval)
        -> build_email_prompt() -> LLMClient.generate()  (Groq)
        -> confidence heuristic
@@ -115,8 +115,9 @@ both validated in `backend/services/state_machine.py`.
   models in `backend/models/`. The schema is managed entirely by Alembic — run
   `alembic upgrade head`. `Base.metadata.create_all` is retired: a schema
   change means a new migration, never editing the model and recreating the DB.
-- **`email_queue.json`** — a flat JSON file used as the AI work queue between the API and
-  `email_worker.py`. Not concurrency-safe; becomes a DB-backed queue in Phase 3.
+- **AI draft queue** — not a separate store: inbound `Message`s with
+  `review_status = awaiting_ai`. `email_worker.py` claims them with
+  `SELECT ... FOR UPDATE SKIP LOCKED`.
 - **FAISS index** — `data/users/<id>/vector_store/{faiss_index,docs.json}` per company.
 
 ## Stack

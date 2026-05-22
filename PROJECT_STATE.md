@@ -1,6 +1,6 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 3
+Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 4
 complete** (Phases 0–2 merged to `main`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
@@ -40,6 +40,9 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   (verifies IMAP **and** SMTP before saving) and `GET /mailbox`. The worker
   polls every connected mailbox; the send path replies from the Company's
   own mailbox. The backend no longer uses a global `EMAIL_USER`.
+- **AI draft queue** — no separate store: the worker drafts replies for
+  inbound Messages with `review_status = awaiting_ai`, claimed with
+  `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.
 - **Migrations** — Alembic; current head `0e9582994b57`.
 
 ## Deployment status
@@ -77,8 +80,6 @@ managed Postgres.
 
 ## Active technical debt
 
-- `email_queue.json` JSON queue still in use — replaced by a DB-backed queue
-  in Phase 3. (The legacy `emails` table/model/routes are gone.)
 - Alembic autogenerate flags redundant `ix_<table>_id` indexes on
   `audit_logs`, `customers`, `messages` and `tickets` — those models declare
   `index=True` on the PK column but the DB never got the index. Harmless

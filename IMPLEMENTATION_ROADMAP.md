@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 3 chunk 3 complete on `feature/phase-3-mailbox`
-— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 4 — DB-backed AI
-queue. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 3 chunk 4 complete on `feature/phase-3-mailbox`
+— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 5 — forgot/reset
+password. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -84,10 +84,12 @@ queue. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 - ☑ Worker polls **each** Company's mailbox; the send path also replies from
   the Company's own mailbox — chunk 3. `INGEST_COMPANY_ID` and the global
   `EMAIL_USER` are removed from the backend.
-- ☐ DB-backed queue: drop `email_queue.json`; queue = `messages WHERE
-  review_status = awaiting_ai`, claimed with row locking.
-- ☐ Customer/Ticket matching on inbound mail (thread → Ticket).
-- ☐ Forgot/reset password via the transactional email provider.
+- ☑ DB-backed queue — chunk 4: `email_queue.json` dropped; the queue is
+  `messages WHERE review_status = awaiting_ai`, claimed with
+  `FOR UPDATE SKIP LOCKED`.
+- ☑ Customer/Ticket matching on inbound mail (thread → Ticket) — done in
+  Phase 2 (`find_or_open_ticket`, In-Reply-To threading); used by the worker.
+- ☐ Forgot/reset password via the transactional email provider — chunk 5.
 
 ## Phase 4 — RAG hardening
 *Goal: real multi-tenant retrieval.*

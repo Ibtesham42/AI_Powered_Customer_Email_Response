@@ -15,11 +15,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import func  # noqa: E402
 
-from app.email.email_queue import (  # noqa: E402
-    add_to_queue,
-    clear_queue,
-    get_queue,
-)
 from backend.config import settings  # noqa: E402
 from backend.database import SessionLocal  # noqa: E402
 from backend.logging_config import configure_logging, get_logger  # noqa: E402
@@ -46,10 +41,16 @@ logger = get_logger(__name__)
 
 POLL_INTERVAL_SECONDS = 10
 
+# Most AI drafts to generate in one worker cycle, so a backlog cannot starve
+# mailbox polling.
+MAX_DRAFTS_PER_CYCLE = 25
+
 
 def _ingest_email(db, company_id: int, e: dict) -> None:
-    """Ingest one fetched email into the Ticket/Message model and queue it
-    for an AI draft."""
+    """Ingest one fetched email into the Ticket/Message model.
+
+    The new inbound Message is stored ``review_status = awaiting_ai`` by
+    ``add_message`` — that state *is* the AI draft queue (see process_queue)."""
     customer = ticket_service.get_or_create_customer(
         db, company_id, e.get("sender") or "unknown@unknown"
     )
@@ -72,7 +73,6 @@ def _ingest_email(db, company_id: int, e: dict) -> None:
         message_id=e.get("message_id"),
         in_reply_to=e.get("in_reply_to"),
     )
-    add_to_queue(message.id, company_id)
     logger.info(
         "Ingested email -> company %s, ticket %s, message %s",
         company_id,
@@ -132,29 +132,46 @@ def poll_mailboxes(db) -> None:
 
 
 def process_queue() -> None:
-    """Generate an AI draft for each queued inbound Message."""
+    """Draft replies for inbound Messages awaiting AI.
+
+    The queue is not a separate store — it is every Message with
+    ``review_status = awaiting_ai``. Each Message is claimed with
+    ``SELECT ... FOR UPDATE SKIP LOCKED`` so concurrent workers never draft the
+    same one twice; the claim's row lock is released by ``record_ai_draft``'s
+    commit, which in the same transaction moves the Message to ``drafted``.
+    """
     db = SessionLocal()
     try:
-        queue = get_queue()
-        if not queue:
-            return
-        logger.info("Processing %d queued message(s)", len(queue))
-        for item in queue:
-            # The JSON queue's "email_id" field carries a Message id here; the
-            # queue is replaced by a DB-backed queue in Phase 3 chunk 4.
+        # Messages whose draft failed this cycle — excluded so a bad Message
+        # cannot be re-claimed in a tight loop; they are retried next cycle.
+        failed_ids: set[int] = set()
+        drafted = 0
+        while drafted < MAX_DRAFTS_PER_CYCLE:
+            query = db.query(Message).filter(
+                Message.review_status == ReviewStatus.AWAITING_AI
+            )
+            if failed_ids:
+                query = query.filter(Message.id.notin_(failed_ids))
             message = (
-                db.query(Message).filter(Message.id == item["email_id"]).first()
+                query.order_by(Message.id.asc())
+                .with_for_update(skip_locked=True)
+                .first()
             )
             if message is None:
-                continue
-            if message.review_status != ReviewStatus.AWAITING_AI:
-                continue  # already drafted
-            result = ai_service.generate_draft(db, message)
-            ticket_service.record_ai_draft(
-                db, message, result["reply"], result["confidence"]
-            )
-            logger.info("Drafted reply for message %s", message.id)
-        clear_queue()
+                break
+            try:
+                result = ai_service.generate_draft(db, message)
+                ticket_service.record_ai_draft(
+                    db, message, result["reply"], result["confidence"]
+                )
+                drafted += 1
+                logger.info("Drafted reply for message %s", message.id)
+            except Exception:
+                logger.exception("Drafting message %s failed", message.id)
+                db.rollback()
+                failed_ids.add(message.id)
+        if drafted:
+            logger.info("Drafted %d message(s) this cycle", drafted)
     finally:
         db.close()
 
