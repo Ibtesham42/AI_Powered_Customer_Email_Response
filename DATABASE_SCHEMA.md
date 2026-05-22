@@ -213,7 +213,7 @@ Security-relevant actions.
 | id | bigint PK | |
 | company_id | bigint FK | nullable (pre-signup events) |
 | user_id | bigint FK | nullable |
-| action | text not null | e.g. `login`, `mailbox.connect`, `email.send` |
+| action | text not null | e.g. `signup`, `login`, `login_failed`, `logout`, `message_sent`, `draft_rejected` |
 | entity_type / entity_id | text / bigint | |
 | metadata | jsonb | |
 | ip_address | text | |

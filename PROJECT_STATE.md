@@ -1,8 +1,8 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 2, chunk 3 complete**.
-Phase plan: `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
-History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
+Snapshot of the AI Customer Support SaaS as of **Phase 2 complete**
+(chunks 1–4). Phase plan: `IMPLEMENTATION_ROADMAP.md` · Next work:
+`CURRENT_TASKS.md` · History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
 ## What this is
 
@@ -30,6 +30,9 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   `/api/v1/messages` (regenerate / edit / approve / reject / send). The
   worker, AI service and Streamlit dashboard all run on this model; the
   legacy `emails` table, `Email` model and `/email` routes were removed.
+- **Audit logging** — `audit_service.record()` writes an `AuditLog` row for
+  `signup`, `login`, `login_failed`, `logout`, `message_sent` and
+  `draft_rejected`. Audit-write failures are logged and swallowed.
 - **Migrations** — Alembic; current head `7d78ba51b1e8`.
 
 ## Deployment status
@@ -70,7 +73,6 @@ managed Postgres.
 
 - `email_queue.json` JSON queue still in use — replaced by a DB-backed queue
   in Phase 3. (The legacy `emails` table/model/routes are gone.)
-- `audit_logs` table exists but nothing writes to it yet — Phase 2 Chunk 4.
 - `CLAUDE.md` "Important gotchas" / structure notes are partly stale after
   Phases 0–2 — a CLAUDE.md refresh is overdue.
 - `app/rag/rag_pipeline.py` hardcodes the `LabData` vector path — Phase 4.

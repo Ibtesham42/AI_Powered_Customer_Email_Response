@@ -8,6 +8,7 @@ from backend.models.company import Company
 from backend.models.schemas import LoginRequest, RefreshTokenRequest, SignupRequest
 from backend.models.user import User
 from backend.rate_limit import limiter
+from backend.services import audit_service
 from backend.services.auth_service import (
     get_active_refresh_token,
     issue_refresh_token,
@@ -72,6 +73,17 @@ def signup(payload: SignupRequest, request: Request, db: Session = Depends(get_d
     db.commit()
     db.refresh(user)
 
+    audit_service.record(
+        db,
+        action="signup",
+        request=request,
+        company_id=company.id,
+        user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        metadata={"email": user.email, "company_name": company.name},
+    )
+
     return {
         "message": "Account created successfully",
         "company_id": company.id,
@@ -86,9 +98,30 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
     # One generic message for both cases — no account enumeration.
     if not user or not verify_password(payload.password, user.password_hash):
+        audit_service.record(
+            db,
+            action="login_failed",
+            request=request,
+            company_id=user.company_id if user else None,
+            user_id=user.id if user else None,
+            entity_type="user",
+            entity_id=user.id if user else None,
+            metadata={"email": payload.email},
+        )
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    return _issue_tokens(db, user, request)
+    tokens = _issue_tokens(db, user, request)
+    audit_service.record(
+        db,
+        action="login",
+        request=request,
+        company_id=user.company_id,
+        user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        metadata={"email": user.email},
+    )
+    return tokens
 
 
 @router.post("/refresh")
@@ -111,9 +144,24 @@ def refresh(
 
 
 @router.post("/logout")
-def logout(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+def logout(
+    payload: RefreshTokenRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     # Idempotent — always succeeds, whether or not the token was valid.
     row = get_active_refresh_token(db, payload.refresh_token)
     if row is not None:
         revoke_refresh_token(db, row)
+        # Audit only a real session ending; an invalid token is a no-op.
+        user = db.query(User).filter(User.id == row.user_id).first()
+        audit_service.record(
+            db,
+            action="logout",
+            request=request,
+            company_id=user.company_id if user else None,
+            user_id=row.user_id,
+            entity_type="user",
+            entity_id=row.user_id,
+        )
     return {"message": "Logged out"}

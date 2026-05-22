@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 2 chunk 2 complete on
-`feature/phase-2-domain-model` (commit `0660ee0`). Next: Phase 2 chunk 3 — the
-`emails` → Ticket/Message cutover. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 2 complete on `feature/phase-2-domain-model`
+(chunks 1–4). Next: merge to `main` (on the user's OK), then Phase 3 —
+mailbox & ingestion. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -55,7 +55,7 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ `/api/v1` prefix on all feature routes (`/` and `/health` stay
   unversioned).
 
-## Phase 2 — Domain model: Customer + Ticket + Message
+## Phase 2 — Domain model: Customer + Ticket + Message  ☑ DONE
 *Goal: replace the flat `emails` table with the real domain.*
 
 - ☑ Create `customers`, `tickets`, `messages` (+ `audit_logs`) models +
@@ -69,7 +69,8 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   every query filtered by `company_id`.
 - ☑ Rewrite Ticket/Message routes; drop the old `emails` table — chunk 3
   complete (sub-steps 3a–3f; migration `7d78ba51b1e8`).
-- ☐ Write security-relevant events to `audit_logs` (table created in chunk 1).
+- ☑ Write security-relevant events to `audit_logs` — chunk 4:
+  `backend/services/audit_service.py`, events from the auth and message routes.
 
 ## Phase 3 — Mailbox & ingestion
 *Goal: per-Company email, safe credentials, safe queue.*

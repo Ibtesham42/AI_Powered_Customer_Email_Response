@@ -5,6 +5,16 @@ each entry references its git commit.
 
 ## Phase 2 — Domain model (in progress) · branch `feature/phase-2-domain-model`
 
+### Chunk 4 — audit logging
+- `backend/services/audit_service.py` — `record()` writes one `AuditLog` row.
+  Audit failures are logged (`logger.exception`) and swallowed, then the
+  session is rolled back, so a broken audit write never breaks the action it
+  records.
+- Events emitted: `signup`, `login`, `login_failed`, `logout` (`routes/auth.py`)
+  and `message_sent`, `draft_rejected` (`routes/messages.py`). Routes gained a
+  `Request` param so the client IP is captured.
+- No schema change — `audit_logs` was created in Chunk 1 (`76870d572c26`).
+
 ### Chunk 3f — drop the legacy emails path (completes Chunk 3)
 - Deleted `routes/email.py`, `models/email.py`, and the legacy `ai_service`
   functions (`generate_email_reply`, `get_thread_history`).

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.email.email_sender import EmailSender
@@ -9,7 +9,7 @@ from backend.logging_config import get_logger
 from backend.models.enums import MessageDirection, ReviewStatus, TicketStatus
 from backend.models.schemas import DraftUpdate, RejectRequest
 from backend.serializers import message_dict
-from backend.services import ai_service, ticket_service
+from backend.services import ai_service, audit_service, ticket_service
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -68,6 +68,7 @@ def approve_draft(
 def reject_draft(
     message_id: int,
     payload: RejectRequest,
+    request: Request,
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -77,8 +78,17 @@ def reject_draft(
     if ticket is None:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    ticket_service.escalate_ticket(
-        db, ticket, payload.reason or "agent_rejected"
+    reason = payload.reason or "agent_rejected"
+    ticket_service.escalate_ticket(db, ticket, reason)
+    audit_service.record(
+        db,
+        action="draft_rejected",
+        request=request,
+        company_id=user["company_id"],
+        user_id=user["id"],
+        entity_type="ticket",
+        entity_id=ticket.id,
+        metadata={"message_id": message.id, "reason": reason},
     )
     return {"message": "Draft rejected; ticket escalated", "ticket_id": ticket.id}
 
@@ -86,6 +96,7 @@ def reject_draft(
 @router.post("/{message_id}/send")
 def send_reply(
     message_id: int,
+    request: Request,
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -132,6 +143,17 @@ def send_reply(
     ticket_service.transition_message(db, message, ReviewStatus.SENT)
     if ticket.status == TicketStatus.OPEN:
         ticket_service.transition_ticket(db, ticket, TicketStatus.PENDING)
+
+    audit_service.record(
+        db,
+        action="message_sent",
+        request=request,
+        company_id=user["company_id"],
+        user_id=user["id"],
+        entity_type="message",
+        entity_id=message.id,
+        metadata={"ticket_id": ticket.id, "customer_email": customer.email},
+    )
 
     logger.info("Sent reply for message %s to %s", message.id, customer.email)
     return {"message": "Reply sent", "message_id": message.id}
