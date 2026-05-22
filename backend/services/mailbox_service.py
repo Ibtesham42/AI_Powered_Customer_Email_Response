@@ -18,6 +18,19 @@ def get_mailbox(db: Session, company_id: int) -> Mailbox | None:
     return db.query(Mailbox).filter(Mailbox.company_id == company_id).first()
 
 
+def build_connector(mailbox: Mailbox) -> AppPasswordConnector:
+    """Build a live connector from a stored Mailbox row, decrypting the
+    credential. The single place that turns persisted mailbox state into a
+    usable connector — used by the worker (polling) and the send path.
+    """
+    return AppPasswordConnector(
+        mailbox.email_address,
+        crypto.decrypt(mailbox.encrypted_credential),
+        imap_host=mailbox.imap_host,
+        smtp_host=mailbox.smtp_host,
+    )
+
+
 def connect_mailbox(
     db: Session,
     company_id: int,

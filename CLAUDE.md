@@ -77,7 +77,7 @@ HTTP. The standalone Streamlit apps are the legacy single-tenant path.
 ### Request flow
 
 ```
-Inbound email (email_worker.py polling Gmail IMAP)
+Inbound email (email_worker.py polling each Company's mailbox over IMAP)
   -> get_or_create_customer; find_or_open_ticket (In-Reply-To threading)
   -> inbound Message on the Ticket, review_status=AWAITING_AI
   -> add_to_queue() appends to email_queue.json
@@ -89,7 +89,7 @@ Inbound email (email_worker.py polling Gmail IMAP)
      review_status=DRAFTED
   -> dashboard GET /api/v1/tickets/queue  (lowest confidence first)
   -> agent edits -> PUT /api/v1/messages/{id}/draft -> review_status=REVIEWED
-  -> POST /api/v1/messages/{id}/send -> EmailSender SMTP -> review_status=SENT,
+  -> POST /api/v1/messages/{id}/send -> Company mailbox SMTP -> review_status=SENT,
      outbound Message created, Ticket -> PENDING
 ```
 

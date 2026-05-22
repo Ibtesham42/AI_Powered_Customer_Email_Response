@@ -1,6 +1,6 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 2
+Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 3
 complete** (Phases 0–2 merged to `main`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
@@ -37,8 +37,9 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **Mailbox** — `mailboxes` table (one per Company); App Password stored
   Fernet-encrypted (`backend/crypto.py`). `MailboxConnector` abstraction
   (`app/email/mailbox_connector.py`, App Password impl) + `POST /mailbox/connect`
-  (verifies IMAP **and** SMTP before saving) and `GET /mailbox`. Not yet wired
-  to the worker — Phase 3 chunk 3.
+  (verifies IMAP **and** SMTP before saving) and `GET /mailbox`. The worker
+  polls every connected mailbox; the send path replies from the Company's
+  own mailbox. The backend no longer uses a global `EMAIL_USER`.
 - **Migrations** — Alembic; current head `0e9582994b57`.
 
 ## Deployment status

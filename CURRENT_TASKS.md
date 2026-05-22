@@ -1,51 +1,48 @@
 # Current Tasks
 
-Active checkpoint: **Phase 3 chunk 2 COMPLETE** — the mailbox connector and
-`/mailbox/connect` are in. On `feature/phase-3-mailbox`; Phases 0–2 are merged
-to `main`. Next: Phase 3 chunk 3.
+Active checkpoint: **Phase 3 chunk 3 COMPLETE** — the worker and the send
+path are fully per-Company. On `feature/phase-3-mailbox`; Phases 0–2 are
+merged to `main`. Next: Phase 3 chunk 4.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
-## ✅ Phase 3 Chunk 2 — done (mailbox connector + connect route)
+## ✅ Phase 3 Chunk 3 — done (worker polls each Company's mailbox)
 
-- `app/email/mailbox_connector.py` — `MailboxConnector` abstraction;
-  `AppPasswordConnector` (IMAP/SMTP). `verify()` checks both IMAP and SMTP
-  login. `MailboxError` carries a user-facing message.
-- `backend/services/mailbox_service.py` — `connect_mailbox()` verifies first,
-  then stores the credential encrypted; a failed verify writes nothing.
-- `POST /api/v1/mailbox/connect` (Owner-only, audited) + `GET /api/v1/mailbox`.
-- `MailboxConnectRequest` schema; `mailbox_dict` serializer (no credential).
+- `scripts/email_worker.py` — `poll_mailboxes()` loops over every connected
+  `Mailbox`, fetches via the connector, ingests into Tickets/Messages, and
+  records `last_polled_at` / `status`. One mailbox failing never stops others.
+- `routes/messages.py` send path replies from the Company's own mailbox
+  (`mailbox_service.build_connector()`), not a global account.
+- `INGEST_COMPANY_ID` and the global `EMAIL_USER`/`EMAIL_PASS` backend usage
+  are gone.
 
 See `CHANGELOG.md` for commit-level detail.
 
-## ⚠️ Verify chunk 2 against a real Gmail mailbox
+## ⚠️ Email now requires a connected mailbox
 
-The happy path needs live Gmail credentials and cannot be unit-tested. Before
-relying on it:
-1. Ensure `MAILBOX_ENCRYPTION_KEY` is set in `.env` (chunk 1 added it to
-   `.env.example`; generate with
-   `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`).
-2. Run the app, log in as an Owner, `POST /api/v1/mailbox/connect` with a real
-   Gmail address + App Password. Expect `200` and a `mailboxes` row;
-   `GET /api/v1/mailbox` should show `status=connected`.
+After chunk 3 the worker and the send route both need a per-Company `Mailbox`:
+1. `MAILBOX_ENCRYPTION_KEY` must be set in `.env` (chunk 1).
+2. Each Company must connect a mailbox via `POST /api/v1/mailbox/connect`
+   (chunk 2) — otherwise ingestion is skipped and `send` returns `400`.
 
-## Next: Phase 3 — Chunk 3 (worker polls each Company's mailbox)
+## Next: Phase 3 — Chunk 4 (DB-backed AI queue)
 
-- `scripts/email_worker.py` — replace the single global mailbox
-  (`Config.EMAIL_USER` / `INGEST_COMPANY_ID`) with a loop over every Company
-  that has a connected `Mailbox`.
-- For each: decrypt the credential, build an `AppPasswordConnector`, fetch
-  unread mail, ingest into Tickets/Messages (existing `ticket_service` flow).
-- Update `mailbox.last_polled_at`; set `status=error` on a failed poll.
-- The `connector.fetch_unread()` method already exists from chunk 2.
+Retire `email_queue.json` (not concurrency-safe).
+
+- The queue becomes a query: inbound `Message`s with
+  `review_status = awaiting_ai`.
+- The worker claims rows with `SELECT ... FOR UPDATE SKIP LOCKED` so multiple
+  workers don't draft the same Message twice.
+- Drop `app/email/email_queue.py` (and `app/queue/email_queue.py`),
+  `add_to_queue` / `get_queue` / `clear_queue`, and the `email_queue.json` file.
+- `email_worker.py` `process_queue()` reads from the DB instead.
 
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`.
 2. `git checkout feature/phase-3-mailbox`; confirm `alembic current` =
    `0e9582994b57`.
-3. Implement Chunk 3; commit; sync the docs.
+3. Implement Chunk 4; commit; sync the docs.
 
 ## Remaining Phase 3 chunks
-- Chunk 4 — DB-backed queue: retire `email_queue.json`.
 - Chunk 5 — forgot/reset password via the transactional email provider.
 
 ## Known cautions

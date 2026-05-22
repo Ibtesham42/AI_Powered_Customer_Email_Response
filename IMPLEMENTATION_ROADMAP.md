@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 3 chunk 2 complete on `feature/phase-3-mailbox`
-— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 3 — the worker polls
-each Company's mailbox. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 3 chunk 3 complete on `feature/phase-3-mailbox`
+— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 4 — DB-backed AI
+queue. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -81,8 +81,9 @@ each Company's mailbox. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
   chunk 2 (`app/email/mailbox_connector.py`).
 - ☑ `/mailbox/connect` — verify IMAP/SMTP before saving — chunk 2
   (`routes/mailbox.py`, `services/mailbox_service.py`).
-- ☐ Worker polls **each** Company's mailbox (remove hardcoded `company_id=1`
-  and global `EMAIL_USER`).
+- ☑ Worker polls **each** Company's mailbox; the send path also replies from
+  the Company's own mailbox — chunk 3. `INGEST_COMPANY_ID` and the global
+  `EMAIL_USER` are removed from the backend.
 - ☐ DB-backed queue: drop `email_queue.json`; queue = `messages WHERE
   review_status = awaiting_ai`, claimed with row locking.
 - ☐ Customer/Ticket matching on inbound mail (thread → Ticket).

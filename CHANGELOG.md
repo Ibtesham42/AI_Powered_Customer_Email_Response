@@ -5,6 +5,19 @@ each entry references its git commit.
 
 ## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
 
+### Chunk 3 — worker polls each Company's mailbox
+- `scripts/email_worker.py` rewritten: `poll_mailboxes()` loops over every
+  connected `Mailbox`, builds a connector, fetches unread mail, ingests into
+  Tickets/Messages, and records `last_polled_at` / `status` on the mailbox.
+  One mailbox failing is logged and never stops the others.
+- `routes/messages.py` send path now replies from the Company's *own* mailbox
+  via `mailbox_service.build_connector()`, not the global `EMAIL_USER`.
+- `mailbox_service.build_connector()` — the single place that turns a stored
+  Mailbox into a live connector (decrypts the credential).
+- Removed `INGEST_COMPANY_ID` (config + `.env.example`) and all backend use
+  of the global `EMAIL_USER`/`EMAIL_PASS`. Both the worker and the send path
+  now require a connected mailbox.
+
 ### Chunk 2 — mailbox connector + connect route
 - `app/email/mailbox_connector.py` — `MailboxConnector` abstraction with an
   `AppPasswordConnector` (IMAP/SMTP App Password, OAuth-ready). `verify()`

@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.email.email_sender import EmailSender
-from app.utils.config import Config
 from backend.auth.dependencies import get_current_user
 from backend.database import get_db
 from backend.logging_config import get_logger
 from backend.models.enums import MessageDirection, ReviewStatus, TicketStatus
 from backend.models.schemas import DraftUpdate, RejectRequest
 from backend.serializers import message_dict
-from backend.services import ai_service, audit_service, ticket_service
+from backend.services import (
+    ai_service,
+    audit_service,
+    mailbox_service,
+    ticket_service,
+)
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -122,12 +125,20 @@ def send_reply(
     if not reply_text:
         raise HTTPException(status_code=400, detail="No reply content")
 
+    # Send from the Company's own connected mailbox.
+    mailbox = mailbox_service.get_mailbox(db, user["company_id"])
+    if mailbox is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No mailbox connected — connect one at /mailbox/connect",
+        )
+
     subject = f"Re: {ticket.subject}" if ticket.subject else "Re: your enquiry"
-    EmailSender(Config.EMAIL_USER, Config.EMAIL_PASS).send_email(
+    mailbox_service.build_connector(mailbox).send(
         to_email=customer.email,
         subject=subject,
         body=reply_text,
-        message_id=message.message_id,
+        in_reply_to=message.message_id,
     )
 
     # The sent reply becomes an outbound Message on the Ticket.

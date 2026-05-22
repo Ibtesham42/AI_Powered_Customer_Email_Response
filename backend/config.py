@@ -10,9 +10,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Raw optional env value, resolved into Settings below.
-_INGEST_COMPANY_ID = os.getenv("INGEST_COMPANY_ID")
-
 
 class MissingSettingError(RuntimeError):
     """Raised when a required environment variable is not set."""
@@ -52,12 +49,6 @@ class Settings:
     # Optional at startup so the app still runs without mailbox features; the
     # crypto helper fails loudly on first use if it is missing or invalid.
     MAILBOX_ENCRYPTION_KEY: str | None = os.getenv("MAILBOX_ENCRYPTION_KEY")
-
-    # --- Email ingestion (interim — per-company mailboxes arrive in Phase 3) ---
-    # The Company that inbound email from the single global mailbox belongs to.
-    INGEST_COMPANY_ID: int | None = (
-        int(_INGEST_COMPANY_ID) if _INGEST_COMPANY_ID else None
-    )
 
 
 settings = Settings()
