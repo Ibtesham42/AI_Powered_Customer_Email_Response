@@ -23,10 +23,13 @@ retrieval, prompting, intent, confidence, and memory.
 
 ## Architecture rules
 
-- **Retrieval is always scoped by `company_id`.** The hardcoded `LabData` path
-  in `rag_pipeline.py` is a tenant-isolation defect and must be removed.
-- The embedding model is loaded **once** per process. Constructing a pipeline
-  per email is a defect.
+- **Retrieval is always scoped by `company_id`.** The backend retrieves via
+  `backend/services/rag_service.py` (pgvector, `company_id`-filtered). The
+  legacy FAISS `rag_pipeline.py` with its hardcoded `LabData` path is
+  standalone-app-only — never route backend retrieval through it.
+- The embedding model is loaded **once** per process —
+  `app.rag.embeddings.get_embedding_model()`. Constructing it per email is a
+  defect.
 - The same embedding model and dimension are used for ingestion and for query —
   never mix models.
 - One structured LLM call per inbound Message produces `{intent, confidence,

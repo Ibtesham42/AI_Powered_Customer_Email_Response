@@ -5,6 +5,18 @@ each entry references its git commit.
 
 ## Phase 4 — RAG hardening (in progress) · branch `feature/phase-4-rag`
 
+### Chunk 3 — retrieval from pgvector (multi-tenancy fix)
+- `backend/services/rag_service.py` — `get_rag_context(db, query, company_id)`
+  embeds the query and retrieves the nearest `kb_chunks` **filtered by
+  `company_id`**, ordered by cosine distance. Tenant isolation restored.
+- `ai_service.generate_draft` retrieves via `rag_service` — no longer through
+  the legacy FAISS `rag_pipeline.py` and its single hardcoded `LabData` index.
+- `EmbeddingModel.embed_query()`; the read path now uses the
+  `get_embedding_model()` singleton — the per-email reload bug is gone.
+- The FAISS modules (`rag_pipeline`, `retriever`, `vector_store`, `build_rag`,
+  `preprocess`) are kept as the legacy single-tenant path for the standalone
+  Streamlit apps — retired with them in Phase 7.
+
 ### Chunk 2 — in-process KB ingestion into pgvector
 - `app/rag/extract.py` — plain-text extraction for PDF/DOCX/TXT/CSV/JSON
   (light cleaning only, so policy/FAQ content survives intact).

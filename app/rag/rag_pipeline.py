@@ -1,3 +1,12 @@
+"""LEGACY single-tenant FAISS retrieval.
+
+Used only by the standalone Streamlit apps (chat_app.py, email_streamlit_ui.py)
+via app/email/email_responder.py. The vector path is hardcoded to one shared
+`LabData` index — fine for a single-tenant local app, NOT for the multi-tenant
+backend, which retrieves via backend/services/rag_service.py (pgvector, scoped
+by company_id). This module is retired with the standalone apps in Phase 7.
+"""
+
 import json
 import logging
 

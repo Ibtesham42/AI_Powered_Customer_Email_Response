@@ -43,6 +43,16 @@ class EmbeddingModel:
         )
         return [v.tolist() for v in vectors]
 
+    def embed_query(self, text: str) -> list[float]:
+        """Embed a single query string for retrieval — returns a plain list."""
+        vector = self.model.encode(
+            text,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
+        return vector.tolist()
+
 
 @lru_cache(maxsize=1)
 def get_embedding_model() -> EmbeddingModel:

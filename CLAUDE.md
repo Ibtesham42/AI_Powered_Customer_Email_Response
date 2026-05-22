@@ -47,12 +47,10 @@ streamlit run dashboard_app.py
 python scripts/email_worker.py
 ```
 
-Build a company knowledge base (also done automatically by `POST /data/upload`):
-
-```bash
-python -m app.rag.preprocess --user_id <company_id>   # raw/ -> processed/documents.json
-python scripts/build_rag.py   --user_id <company_id>   # processed/ -> FAISS index
-```
+Knowledge bases are built by uploading files to `POST /api/v1/data/upload` — the
+backend extracts, chunks, embeds and stores them in pgvector in-process. The
+`app.rag.preprocess` / `scripts/build_rag.py` CLI scripts are the legacy FAISS
+path, used only by the standalone Streamlit apps.
 
 There is **no test framework**. `scripts/test_query.py` and `scripts/test_email_listener.py`
 are ad-hoc scripts you run directly with `python scripts/<name>.py`.
@@ -82,7 +80,7 @@ Inbound email (email_worker.py polling each Company's mailbox over IMAP)
        (an awaiting_ai Message *is* the AI queue — no separate store)
   -> email_worker.py claims awaiting_ai Messages (FOR UPDATE SKIP LOCKED)
        -> ai_service.generate_draft()
-       -> get_rag_context()  (FAISS retrieval)
+       -> rag_service.get_rag_context()  (pgvector, company-scoped)
        -> build_email_prompt() -> LLMClient.generate()  (Groq)
        -> confidence heuristic
   -> ticket_service.record_ai_draft(): ai_draft + confidence saved,
@@ -120,19 +118,21 @@ both validated in `backend/services/state_machine.py`.
 - **AI draft queue** — not a separate store: inbound `Message`s with
   `review_status = awaiting_ai`. `email_worker.py` claims them with
   `SELECT ... FOR UPDATE SKIP LOCKED`.
-- **FAISS index** — `data/users/<id>/vector_store/{faiss_index,docs.json}` per company.
+- **Knowledge base** — per-Company embeddings in the `kb_chunks` pgvector table;
+  retrieval is a `company_id`-filtered cosine-distance query.
 
 ## Stack
 
 FastAPI + SQLAlchemy + Postgres (Neon) backend; Streamlit frontend; Groq
 (`llama-3.3-70b-versatile`) for generation; `sentence-transformers` BGE embeddings +
-`faiss-cpu` for retrieval; Gmail IMAP/SMTP for email.
+pgvector for retrieval; Gmail IMAP/SMTP for email.
 
 ## Important gotchas
 
-- **`app/rag/rag_pipeline.py` ignores `company_id`.** The vector path is hardcoded to
-  `data/users/LabData/vector_store`, so every tenant currently retrieves from the same
-  index. This breaks the multi-tenant promise — fix here if working on per-company RAG.
+- **Two RAG paths.** The backend retrieves via `backend/services/rag_service.py`
+  (pgvector, scoped by `company_id`). `app/rag/rag_pipeline.py` is the legacy FAISS
+  path with a hardcoded shared index — standalone-app-only; never use it from the
+  backend.
 - **Env var name drift.** `app/utils/config.py` reads `EMAIL_USER` / `EMAIL_PASS` and
   `GROQ_API_KEY`; the README mentions `EMAIL_PASSWORD`. Match `config.py`, not the README.
 - The active model name lives in `app/llm/llm_client.py` (hardcoded), not in

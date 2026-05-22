@@ -1,52 +1,49 @@
 # Current Tasks
 
-Active checkpoint: **Phase 4 chunk 2 COMPLETE** — KB uploads index in-process
-into pgvector. On `feature/phase-4-rag`; Phases 0–3 are merged to `main`.
-Next: Phase 4 chunk 3.
+Active checkpoint: **Phase 4 chunk 3 COMPLETE** — backend RAG retrieval runs
+on pgvector, scoped by `company_id`. The `LabData` multi-tenancy bug is fixed.
+On `feature/phase-4-rag`; Phases 0–3 are merged to `main`. Next: Phase 4
+chunk 4 (the last Phase 4 chunk).
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
-## ✅ Phase 4 Chunk 2 — done (in-process KB ingestion into pgvector)
+## ✅ Phase 4 Chunk 3 — done (retrieval from pgvector)
 
-- `app/rag/extract.py` — plain-text extraction (PDF/DOCX/TXT/CSV/JSON).
-- `backend/services/kb_service.py` — `create_document` + `ingest_document`
-  (background task: extract → chunk → embed → store `KbChunk` rows; tracks
-  `KbDocument.status`).
-- `app/rag/embeddings.py` — `get_embedding_model()` singleton +
-  `embed_documents()`.
-- `POST /api/v1/data/upload` indexes in-process (FastAPI `BackgroundTasks`),
-  no `subprocess`. New `GET /api/v1/data/documents`.
+- `backend/services/rag_service.py` — `get_rag_context(db, query, company_id)`
+  embeds the query and retrieves the nearest `kb_chunks` filtered by
+  `company_id`, by cosine distance.
+- `ai_service.generate_draft` retrieves via `rag_service`, not the legacy
+  FAISS `rag_pipeline.py`.
+- `EmbeddingModel.embed_query()`; retrieval uses the `get_embedding_model()`
+  singleton (no more per-email reload).
+- FAISS modules kept as the legacy single-tenant path (standalone apps,
+  retired in Phase 7).
 
 See `CHANGELOG.md` for commit-level detail.
 
-## Next: Phase 4 — Chunk 3 (retrieval from pgvector)
+## Next: Phase 4 — Chunk 4 (multi-format ingestion + grounded confidence)
 
-The read path — the chunk that fixes the multi-tenancy break.
+The last Phase 4 chunk.
 
-- Rewrite `app/rag/get_rag_context(query, company_id)` to embed the query
-  (`get_embedding_model().embed_query(...)`) and retrieve the top-k
-  `KbChunk` rows **filtered by `company_id`**, ordered by
-  `embedding.cosine_distance(...)`.
-- Add `embed_query()` to `EmbeddingModel` (returns a plain list).
-- This needs a DB session — decide how `get_rag_context` gets one (it is
-  called from `ai_service.generate_draft`, which already has `db`). Likely:
-  pass `db` through, or have it open its own `SessionLocal`.
-- Retire FAISS: delete `app/rag/rag_pipeline.py`'s FAISS code,
-  `vector_store.py`, `retriever.py`, the hardcoded `LabData` path, and
-  `scripts/build_rag.py` / `app/rag/preprocess.py` if nothing else uses them.
-- Update `CLAUDE.md` (the `rag_pipeline.py` `LabData` gotcha) and
-  `PROJECT_STATE.md` tech debt once the bug is gone.
+- **URL ingestion** — fetch a web page, extract readable text, ingest as a
+  `KbDocument` (`doc_type=url`). Needs a new entry point (not a file upload),
+  e.g. `POST /api/v1/data/url`.
+- **FAQ ingestion** — add a question+answer entry directly (`doc_type=faq`),
+  e.g. `POST /api/v1/data/faq`. No file; the Q+A text is the content.
+- **Retrieval-grounded confidence** — replace the keyword heuristic in
+  `ai_service.calculate_confidence` with retrieval similarity (cosine score
+  of the top chunks) plus the LLM's self-rating.
+- File formats PDF/DOCX/CSV/TXT/JSON already work (chunk 2).
 
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`.
 2. `git checkout feature/phase-4-rag`; confirm `alembic current` =
    `4da268d4e51a`.
-3. Implement Chunk 3; commit; sync the docs.
-
-## Remaining Phase 4 chunks
-- Chunk 4 — multi-format ingestion (URL, FAQ) + retrieval-grounded confidence.
+3. Implement Chunk 4; commit; sync the docs.
+4. After chunk 4: Phase 4 is complete — merge `feature/phase-4-rag` → `main`
+   (on the user's OK).
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see
   `PROJECT_STATE.md` → Known bugs).
-- The embedding model + Groq are heavy/needs-network — verify through the
+- The embedding model + Groq are heavy/need network — verify through the
   running app where practical.

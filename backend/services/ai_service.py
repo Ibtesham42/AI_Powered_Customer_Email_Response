@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.llm.llm_client import LLMClient
 from app.llm.prompt_builder import build_email_prompt
-from app.rag.rag_pipeline import get_rag_context
 from backend.models.enums import MessageDirection
 from backend.models.message import Message
+from backend.services.rag_service import get_rag_context
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def generate_draft(db: Session, message: Message) -> dict:
     Returns ``{"reply": str, "confidence": int}``. Persistence is the caller's
     job — see ``ticket_service.record_ai_draft``.
     """
-    context = get_rag_context(message.body, message.company_id)
+    context = get_rag_context(db, message.body, message.company_id)
     history = get_ticket_history(
         db, message.ticket_id, before_message_id=message.id
     )
