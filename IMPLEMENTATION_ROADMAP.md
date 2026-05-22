@@ -6,10 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 3 complete (chunks 1–5) on
-`feature/phase-3-mailbox`; Phases 0–2 are merged to `main`. Next: merge to
-`main` (on the user's OK), then Phase 4 — RAG hardening. See
-`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 4 chunk 1 complete on `feature/phase-4-rag`
+— Phases 0–3 are merged to `main`. Next: Phase 4 chunk 2 — in-process KB
+ingestion into pgvector. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -93,10 +92,12 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ Forgot/reset password via the transactional email provider (Resend) —
   chunk 5 (`password_reset_tokens`, migration `3894e0ba0973`).
 
-## Phase 4 — RAG hardening
+## Phase 4 — RAG hardening  ◐ IN PROGRESS
 *Goal: real multi-tenant retrieval.*
 
-- ☐ Move embeddings to pgvector (`kb_chunks`); per-Company isolation.
+- ◐ Move embeddings to pgvector (`kb_chunks`); per-Company isolation —
+  chunk 1 built the `vector` extension + `kb_documents`/`kb_chunks` tables
+  (migration `4da268d4e51a`); the write/read paths move over in chunks 2–3.
 - ☐ **Fix `rag_pipeline.py`**: remove the hardcoded `LabData` path; scope by
   `company_id`.
 - ☐ **Fix the reload bug**: load the embedding model once (process-level

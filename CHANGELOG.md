@@ -3,7 +3,17 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
+## Phase 4 — RAG hardening (in progress) · branch `feature/phase-4-rag`
+
+### Chunk 1 — pgvector foundation
+- Enabled the `vector` extension; created `kb_documents` (uploaded KB
+  sources) and `kb_chunks` (chunked text + 768-dim embeddings) — migration
+  `4da268d4e51a`, with an HNSW cosine index on `kb_chunks.embedding`.
+- `KbDocument` / `KbChunk` models; `KbDocType` / `KbDocStatus` enums.
+- `pgvector` added as a dependency. Additive — no behaviour change yet; the
+  write and read paths move onto pgvector in chunks 2–3.
+
+## Phase 3 — Mailbox & ingestion · merged to `main` (`cc72072`)
 
 ### Chunk 5 — forgot / reset password (completes Phase 3)
 - `password_reset_tokens` table (migration `3894e0ba0973`) — single-use,

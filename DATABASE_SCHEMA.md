@@ -16,11 +16,10 @@ Conventions:
 Tracked per chunk as the schema is implemented (see `IMPLEMENTATION_ROADMAP.md`).
 
 - **Database**: Postgres (Neon managed cloud). The pgvector extension is
-  available and gets enabled in Phase 4. Schema is managed by Alembic —
-  `alembic upgrade head`.
+  enabled (Phase 4). Schema is managed by Alembic — `alembic upgrade head`.
 - **Built**: `companies`, `users`, `refresh_tokens`, `customers`, `tickets`,
-  `messages`, `audit_logs`, `mailboxes`, `password_reset_tokens`.
-- **Pending**: `kb_documents`, `kb_chunks` (Phase 4).
+  `messages`, `audit_logs`, `mailboxes`, `password_reset_tokens`,
+  `kb_documents`, `kb_chunks`.
 
 ## Enums
 

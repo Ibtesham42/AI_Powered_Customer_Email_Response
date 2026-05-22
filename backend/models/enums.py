@@ -55,3 +55,24 @@ class MailboxStatus(StrEnum):
 
     CONNECTED = "connected"  # last IMAP/SMTP check succeeded
     ERROR = "error"  # last check failed — needs reconnection
+
+
+class KbDocType(StrEnum):
+    """The kind of knowledge-base source a KbDocument was created from."""
+
+    PDF = "pdf"
+    DOCX = "docx"
+    CSV = "csv"
+    TXT = "txt"
+    JSON = "json"
+    URL = "url"
+    FAQ = "faq"
+
+
+class KbDocStatus(StrEnum):
+    """Indexing lifecycle of a KbDocument."""
+
+    PENDING = "pending"  # uploaded, not yet processed
+    PROCESSING = "processing"  # extraction + embedding in progress
+    INDEXED = "indexed"  # chunks embedded and stored
+    ERROR = "error"  # processing failed — see the error column

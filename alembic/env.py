@@ -15,6 +15,8 @@ from backend.database import DATABASE_URL, Base  # noqa: E402
 from backend.models.audit_log import AuditLog  # noqa: E402,F401
 from backend.models.company import Company  # noqa: E402,F401
 from backend.models.customer import Customer  # noqa: E402,F401
+from backend.models.kb_chunk import KbChunk  # noqa: E402,F401
+from backend.models.kb_document import KbDocument  # noqa: E402,F401
 from backend.models.mailbox import Mailbox  # noqa: E402,F401
 from backend.models.message import Message  # noqa: E402,F401
 from backend.models.password_reset_token import (  # noqa: E402,F401
