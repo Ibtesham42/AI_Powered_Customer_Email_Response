@@ -66,8 +66,9 @@ fully reflect:
 - **`app/`** — the RAG/LLM/email engine. Pure, framework-agnostic modules (`rag/`,
   `llm/`, `email/`, `queue/`, `utils/`). Originally driven by standalone Streamlit apps
   (`chat_app.py`, `email_streamlit_ui.py`) and CLI `scripts/`.
-- **`backend/`** — a FastAPI SaaS that *wraps* `app/`. It adds auth, a SQLite database,
-  and per-company multi-tenancy. `backend/services/ai_service.py` is the bridge: it calls
+- **`backend/`** — a FastAPI SaaS that *wraps* `app/`. It adds auth, a Postgres
+  database, the Customer/Ticket/Message domain model, and per-company
+  multi-tenancy. `backend/services/ai_service.py` is the bridge: it calls
   into `app.rag`, `app.llm`, and `app.email`.
 
 `dashboard_app.py` is the current frontend and only talks to the FastAPI backend over
@@ -99,35 +100,36 @@ both validated in `backend/services/state_machine.py`.
 
 ### Multi-tenancy
 
-- Auth: `POST /auth/signup` creates/links a `Company`; `POST /auth/login` returns a JWT
-  carrying `user_id` + `company_id`. `get_current_user` (in `backend/auth/dependencies.py`)
-  decodes it into a dict; routes scope every DB query by `user["company_id"]`.
+- Auth: `POST /api/v1/auth/signup` always creates a *new* `Company` (the signer
+  becomes its Owner — there is no join-by-name); `POST /api/v1/auth/login` returns
+  a JWT carrying `user_id` + `company_id`, plus an opaque refresh token.
+  `get_current_user` (in `backend/auth/dependencies.py`) decodes the JWT into a
+  dict; routes scope every DB query by `user["company_id"]`.
 - Knowledge bases live under `data/users/<company_id>/{raw,processed,vector_store}`,
   created by `WorkspaceManager`. `POST /data/upload` saves the file there and shells out
   (via `subprocess`) to `preprocess.py` then `build_rag.py` to retrain that company.
 
 ### Persistence
 
-- **`saas.db`** — SQLite via SQLAlchemy. Models in `backend/models/`. Tables are
-  auto-created on startup by `Base.metadata.create_all` in `backend/main.py`; there are
-  no migrations, so schema changes mean editing the model and recreating the DB.
+- **Postgres (Neon managed cloud)** — `DATABASE_URL` in `.env`; SQLAlchemy
+  models in `backend/models/`. The schema is managed entirely by Alembic — run
+  `alembic upgrade head`. `Base.metadata.create_all` is retired: a schema
+  change means a new migration, never editing the model and recreating the DB.
 - **`email_queue.json`** — a flat JSON file used as the AI work queue between the API and
-  `email_worker.py`. Not concurrency-safe.
+  `email_worker.py`. Not concurrency-safe; becomes a DB-backed queue in Phase 3.
 - **FAISS index** — `data/users/<id>/vector_store/{faiss_index,docs.json}` per company.
 
 ## Stack
 
-FastAPI + SQLAlchemy + SQLite backend; Streamlit frontend; Groq (`llama-3.3-70b-versatile`)
-for generation; `sentence-transformers` BGE embeddings + `faiss-cpu` for retrieval; Gmail
-IMAP/SMTP for email.
+FastAPI + SQLAlchemy + Postgres (Neon) backend; Streamlit frontend; Groq
+(`llama-3.3-70b-versatile`) for generation; `sentence-transformers` BGE embeddings +
+`faiss-cpu` for retrieval; Gmail IMAP/SMTP for email.
 
 ## Important gotchas
 
 - **`app/rag/rag_pipeline.py` ignores `company_id`.** The vector path is hardcoded to
   `data/users/LabData/vector_store`, so every tenant currently retrieves from the same
   index. This breaks the multi-tenant promise — fix here if working on per-company RAG.
-- **`backend/auth/jwt_handler.py` has a hardcoded `SECRET_KEY = "your_secret_key"`.**
-  Move it to an env var before any real deployment.
 - **Env var name drift.** `app/utils/config.py` reads `EMAIL_USER` / `EMAIL_PASS` and
   `GROQ_API_KEY`; the README mentions `EMAIL_PASSWORD`. Match `config.py`, not the README.
 - The active model name lives in `app/llm/llm_client.py` (hardcoded), not in
