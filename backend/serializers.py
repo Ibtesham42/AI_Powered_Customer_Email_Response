@@ -2,6 +2,7 @@
 JSON layer and the response shape consistent across routes.
 """
 
+from backend.models.kb_document import KbDocument
 from backend.models.mailbox import Mailbox
 from backend.models.message import Message
 from backend.models.ticket import Ticket
@@ -50,4 +51,17 @@ def mailbox_dict(mailbox: Mailbox) -> dict:
         "smtp_host": mailbox.smtp_host,
         "status": mailbox.status,
         "last_polled_at": mailbox.last_polled_at,
+    }
+
+
+def kb_document_dict(document: KbDocument) -> dict:
+    """Serialize a KbDocument for an API response."""
+    return {
+        "id": document.id,
+        "filename": document.filename,
+        "doc_type": document.doc_type,
+        "status": document.status,
+        "error": document.error,
+        "created_at": document.created_at,
+        "indexed_at": document.indexed_at,
     }

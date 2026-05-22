@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 4 chunk 1 complete on `feature/phase-4-rag`
-— Phases 0–3 are merged to `main`. Next: Phase 4 chunk 2 — in-process KB
-ingestion into pgvector. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 4 chunk 2 complete on `feature/phase-4-rag`
+— Phases 0–3 are merged to `main`. Next: Phase 4 chunk 3 — retrieval from
+pgvector scoped by `company_id`. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -96,13 +96,14 @@ ingestion into pgvector. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 *Goal: real multi-tenant retrieval.*
 
 - ◐ Move embeddings to pgvector (`kb_chunks`); per-Company isolation —
-  chunk 1 built the `vector` extension + `kb_documents`/`kb_chunks` tables
-  (migration `4da268d4e51a`); the write/read paths move over in chunks 2–3.
+  chunk 1 built the `vector` extension + tables (migration `4da268d4e51a`);
+  chunk 2 moved the **write** path on; the read path follows in chunk 3.
 - ☐ **Fix `rag_pipeline.py`**: remove the hardcoded `LabData` path; scope by
-  `company_id`.
-- ☐ **Fix the reload bug**: load the embedding model once (process-level
-  singleton), not per email.
-- ☐ Replace `subprocess` KB training with an in-process background task.
+  `company_id` — chunk 3.
+- ◐ **Fix the reload bug**: `get_embedding_model()` process-level singleton
+  added in chunk 2; the per-email read path adopts it in chunk 3.
+- ☑ Replace `subprocess` KB training with an in-process background task —
+  chunk 2 (`/data/upload` → FastAPI `BackgroundTasks`).
 - ☐ Multi-format ingestion: PDF, DOCX, CSV, TXT, URL, FAQ.
 - ☐ Retrieval-grounded confidence (similarity + LLM self-rating).
 

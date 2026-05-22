@@ -5,6 +5,21 @@ each entry references its git commit.
 
 ## Phase 4 — RAG hardening (in progress) · branch `feature/phase-4-rag`
 
+### Chunk 2 — in-process KB ingestion into pgvector
+- `app/rag/extract.py` — plain-text extraction for PDF/DOCX/TXT/CSV/JSON
+  (light cleaning only, so policy/FAQ content survives intact).
+- `backend/services/kb_service.py` — `create_document` registers an upload;
+  `ingest_document` (a background task) extracts → chunks → embeds → stores
+  `KbChunk` rows, tracking `KbDocument.status` (pending → processing →
+  indexed / error).
+- `app/rag/embeddings.py` — `get_embedding_model()` process-wide singleton
+  (fixes the per-call model-reload bug) + `embed_documents()`.
+- `POST /api/v1/data/upload` indexes in-process via FastAPI `BackgroundTasks`
+  — no more `subprocess` to `preprocess.py` / `build_rag.py`. New
+  `GET /api/v1/data/documents` lists documents + index status. Upload is
+  audited (`kb_document_uploaded`).
+- Retrieval still uses the legacy FAISS index until chunk 3.
+
 ### Chunk 1 — pgvector foundation
 - Enabled the `vector` extension; created `kb_documents` (uploaded KB
   sources) and `kb_chunks` (chunked text + 768-dim embeddings) — migration

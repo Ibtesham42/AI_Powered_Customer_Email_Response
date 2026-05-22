@@ -105,9 +105,11 @@ both validated in `backend/services/state_machine.py`.
   a JWT carrying `user_id` + `company_id`, plus an opaque refresh token.
   `get_current_user` (in `backend/auth/dependencies.py`) decodes the JWT into a
   dict; routes scope every DB query by `user["company_id"]`.
-- Knowledge bases live under `data/users/<company_id>/{raw,processed,vector_store}`,
-  created by `WorkspaceManager`. `POST /data/upload` saves the file there and shells out
-  (via `subprocess`) to `preprocess.py` then `build_rag.py` to retrain that company.
+- Knowledge bases: `POST /api/v1/data/upload` saves the file under
+  `data/users/<company_id>/raw`, registers a `KbDocument`, and an in-process
+  background task extracts/chunks/embeds it into the per-Company `kb_chunks`
+  pgvector table. (Retrieval still reads the legacy FAISS index until Phase 4
+  chunk 3.)
 
 ### Persistence
 

@@ -1,48 +1,52 @@
 # Current Tasks
 
-Active checkpoint: **Phase 4 chunk 1 COMPLETE** — the pgvector knowledge-base
-schema is in. On `feature/phase-4-rag`; Phases 0–3 are merged to `main`.
-Next: Phase 4 chunk 2.
+Active checkpoint: **Phase 4 chunk 2 COMPLETE** — KB uploads index in-process
+into pgvector. On `feature/phase-4-rag`; Phases 0–3 are merged to `main`.
+Next: Phase 4 chunk 3.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
-## ✅ Phase 4 Chunk 1 — done (pgvector foundation)
+## ✅ Phase 4 Chunk 2 — done (in-process KB ingestion into pgvector)
 
-- Enabled the `vector` extension; created `kb_documents` and `kb_chunks`
-  (`embedding vector(768)`, HNSW cosine index) — migration `4da268d4e51a`.
-- `KbDocument` / `KbChunk` models; `KbDocType` / `KbDocStatus` enums.
-- `pgvector` added to `requirements.txt`. Additive — no behaviour change yet.
+- `app/rag/extract.py` — plain-text extraction (PDF/DOCX/TXT/CSV/JSON).
+- `backend/services/kb_service.py` — `create_document` + `ingest_document`
+  (background task: extract → chunk → embed → store `KbChunk` rows; tracks
+  `KbDocument.status`).
+- `app/rag/embeddings.py` — `get_embedding_model()` singleton +
+  `embed_documents()`.
+- `POST /api/v1/data/upload` indexes in-process (FastAPI `BackgroundTasks`),
+  no `subprocess`. New `GET /api/v1/data/documents`.
 
 See `CHANGELOG.md` for commit-level detail.
 
-## Next: Phase 4 — Chunk 2 (in-process KB ingestion into pgvector)
+## Next: Phase 4 — Chunk 3 (retrieval from pgvector)
 
-The write path — move KB uploads off FAISS/`subprocess` onto pgvector.
+The read path — the chunk that fixes the multi-tenancy break.
 
-- `kb_service` — extract text → chunk → embed → store as `KbChunk` rows;
-  create a `KbDocument` row tracking `status` (pending → processing →
-  indexed / error).
-- Embedding-model singleton — fix the per-call reload bug (`EmbeddingModel`
-  is currently rebuilt every request). A process-level cached accessor.
-- `/data/upload` runs ingestion **in-process** (FastAPI `BackgroundTasks`),
-  not via `subprocess` to `preprocess.py` + `build_rag.py`.
-- Reuse the existing extraction/cleaning logic in `app/rag/preprocess.py`
-  where sensible; chunking via `app/rag/chunking.py`.
-- The read path still uses FAISS until chunk 3 — retrieval is no worse than
-  today (already broken by the `LabData` hardcode).
+- Rewrite `app/rag/get_rag_context(query, company_id)` to embed the query
+  (`get_embedding_model().embed_query(...)`) and retrieve the top-k
+  `KbChunk` rows **filtered by `company_id`**, ordered by
+  `embedding.cosine_distance(...)`.
+- Add `embed_query()` to `EmbeddingModel` (returns a plain list).
+- This needs a DB session — decide how `get_rag_context` gets one (it is
+  called from `ai_service.generate_draft`, which already has `db`). Likely:
+  pass `db` through, or have it open its own `SessionLocal`.
+- Retire FAISS: delete `app/rag/rag_pipeline.py`'s FAISS code,
+  `vector_store.py`, `retriever.py`, the hardcoded `LabData` path, and
+  `scripts/build_rag.py` / `app/rag/preprocess.py` if nothing else uses them.
+- Update `CLAUDE.md` (the `rag_pipeline.py` `LabData` gotcha) and
+  `PROJECT_STATE.md` tech debt once the bug is gone.
 
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`.
 2. `git checkout feature/phase-4-rag`; confirm `alembic current` =
    `4da268d4e51a`.
-3. Implement Chunk 2; commit; sync the docs.
+3. Implement Chunk 3; commit; sync the docs.
 
 ## Remaining Phase 4 chunks
-- Chunk 3 — read path: `rag_pipeline.get_rag_context` retrieves from
-  `kb_chunks` scoped by `company_id`; retire FAISS and the `LabData` bug.
 - Chunk 4 — multi-format ingestion (URL, FAQ) + retrieval-grounded confidence.
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see
   `PROJECT_STATE.md` → Known bugs).
-- Embedding/LLM paths need the model download / Groq — heavy to run offline;
-  verify through the running app where practical.
+- The embedding model + Groq are heavy/needs-network — verify through the
+  running app where practical.

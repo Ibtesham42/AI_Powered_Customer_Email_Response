@@ -1,6 +1,6 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 4, chunk 1
+Snapshot of the AI Customer Support SaaS as of **Phase 4, chunk 2
 complete** (Phases 0–3 merged to `main`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
@@ -44,9 +44,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **AI draft queue** — no separate store: the worker drafts replies for
   inbound Messages with `review_status = awaiting_ai`, claimed with
   `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.
-- **Knowledge base (schema)** — `kb_documents` / `kb_chunks` tables on
-  pgvector, per-Company. The RAG write/read paths move onto them in Phase 4
-  chunks 2–3; until then retrieval still uses the legacy FAISS index.
+- **Knowledge base** — `kb_documents` / `kb_chunks` on pgvector, per-Company.
+  `POST /data/upload` ingests in-process (extract → chunk → embed → store)
+  via a background task — `kb_service` + `app/rag/extract.py`, embedding-model
+  singleton. Retrieval still reads the legacy FAISS index — moves to pgvector
+  in chunk 3.
 - **Migrations** — Alembic; current head `4da268d4e51a`.
 
 ## Deployment status

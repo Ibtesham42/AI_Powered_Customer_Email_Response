@@ -53,10 +53,14 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 ## Knowledge base — `/api/v1/kb`
 
+> Implemented under `/api/v1/data` for now (`/upload`, `/documents`); the
+> `/kb` path rename is deferred to the frontend cutover (Phase 7) so the
+> Streamlit dashboard keeps working.
+
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/documents` | **[new]** List KB documents + index status. |
-| POST | `/documents` | **[change]** Upload a file (PDF/DOCX/CSV/TXT). Was `/data/upload`; replace the synchronous `subprocess` train with a background index task. |
+| GET | `/documents` | **[done]** List KB documents + index status. Live at `GET /api/v1/data/documents`. |
+| POST | `/documents` | **[done]** Upload a file (PDF/DOCX/CSV/TXT/JSON). Extracted, chunked and embedded into pgvector by an in-process background task. Live at `POST /api/v1/data/upload` *(Owner)*. |
 | POST | `/documents/url` | **[new]** Ingest website/page content by URL. |
 | POST | `/documents/faq` | **[new]** Add an FAQ entry (question + answer). |
 | DELETE | `/documents/{id}` | **[new]** Remove a document and its chunks. |
