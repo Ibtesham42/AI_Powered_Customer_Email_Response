@@ -67,6 +67,26 @@ class RejectRequest(BaseModel):
     reason: str | None = None
 
 
+class ForgotPasswordRequest(BaseModel):
+    """Body for requesting a password-reset link."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Body for completing a password reset."""
+
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("password must be at least 8 characters")
+        return value
+
+
 class MailboxConnectRequest(BaseModel):
     """Body for connecting a Company's support mailbox."""
 

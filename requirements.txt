@@ -28,6 +28,7 @@ sqlalchemy==2.0.29
 alembic
 psycopg2-binary
 slowapi
+resend==2.30.1  # transactional email (password-reset)
 
 #  AUTH
 passlib[bcrypt]==1.7.4

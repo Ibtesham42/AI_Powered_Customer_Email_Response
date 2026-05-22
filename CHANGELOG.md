@@ -5,6 +5,19 @@ each entry references its git commit.
 
 ## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
 
+### Chunk 5 — forgot / reset password (completes Phase 3)
+- `password_reset_tokens` table (migration `3894e0ba0973`) — single-use,
+  short-lived; only the SHA-256 token hash is stored.
+- `POST /api/v1/auth/forgot-password` — always `200` (no account
+  enumeration), rate-limited 5/min; emails a reset link.
+- `POST /api/v1/auth/reset-password` — validates the token, sets the new
+  password, consumes the token, and revokes every refresh token.
+- `password_reset_service` (token lifecycle), `email_service` (Resend
+  transactional email), `auth_service.revoke_all_refresh_tokens`.
+- Config: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `APP_BASE_URL`,
+  `RESET_TOKEN_EXPIRE_MINUTES`. `resend` added as a dependency.
+- Audited: `password_reset_requested`, `password_reset_completed`.
+
 ### Chunk 4 — DB-backed AI queue
 - The AI queue is no longer a JSON file — it *is* the set of inbound
   `Message`s with `review_status = awaiting_ai`.

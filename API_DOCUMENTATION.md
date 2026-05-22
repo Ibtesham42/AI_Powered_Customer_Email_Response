@@ -30,8 +30,8 @@ Legend: **[now]** exists today (possibly under a different path) ·
 | POST | `/login` | **[done]** Returns `access_token` + `refresh_token`. Generic error message, no account enumeration. Rate limited (10/min). |
 | POST | `/refresh` | **[done]** Exchange a refresh token for a new access token; rotates the refresh token (the old one is revoked). |
 | POST | `/logout` | **[done]** Revoke the refresh token. Idempotent. |
-| POST | `/forgot-password` | **[new]** Sends a reset link via the transactional email provider. Rate-limited. Always returns `200` (no account enumeration). |
-| POST | `/reset-password` | **[new]** Body: reset token + new password. |
+| POST | `/forgot-password` | **[done]** Body: email. Emails a reset link via Resend. Rate-limited 5/min. Always returns `200` (no account enumeration). |
+| POST | `/reset-password` | **[done]** Body: reset token + new password (≥ 8 chars). Consumes the token; revokes all the user's refresh tokens. Rate-limited 10/min. |
 | GET  | `/me` | **[now]** Current User + Company context. Now at `/api/v1/user/me`. |
 
 ## Company & users — `/api/v1/company`

@@ -17,6 +17,9 @@ from backend.models.company import Company  # noqa: E402,F401
 from backend.models.customer import Customer  # noqa: E402,F401
 from backend.models.mailbox import Mailbox  # noqa: E402,F401
 from backend.models.message import Message  # noqa: E402,F401
+from backend.models.password_reset_token import (  # noqa: E402,F401
+    PasswordResetToken,
+)
 from backend.models.refresh_token import RefreshToken  # noqa: E402,F401
 from backend.models.ticket import Ticket  # noqa: E402,F401
 from backend.models.user import User  # noqa: E402,F401

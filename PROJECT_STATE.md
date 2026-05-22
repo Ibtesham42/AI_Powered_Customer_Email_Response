@@ -1,7 +1,7 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 3, chunk 4
-complete** (Phases 0–2 merged to `main`). Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phase 3 complete**
+(chunks 1–5; Phases 0–2 merged to `main`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
@@ -22,7 +22,8 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 ## Completed modules
 
 - **Auth** — signup (1 signup = 1 Company, signer = Owner), login, JWT access
-  + refresh tokens (rotation/revocation), `require_owner` RBAC, rate limiting.
+  + refresh tokens (rotation/revocation), forgot/reset password (Resend
+  email), `require_owner` RBAC, rate limiting.
 - **Config / logging** — env-driven `backend/config.py` (fail-fast on missing
   secrets), structured `backend/logging_config.py`.
 - **Domain model** — `Customer`, `Ticket`, `Message`, `AuditLog` models +
@@ -43,7 +44,7 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **AI draft queue** — no separate store: the worker drafts replies for
   inbound Messages with `review_status = awaiting_ai`, claimed with
   `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.
-- **Migrations** — Alembic; current head `0e9582994b57`.
+- **Migrations** — Alembic; current head `3894e0ba0973`.
 
 ## Deployment status
 
@@ -55,7 +56,8 @@ managed Postgres.
 
 - Engine: **Neon managed Postgres** — `DATABASE_URL` in `.env`.
 - Tables: `companies`, `users`, `refresh_tokens`, `customers`, `tickets`,
-  `messages`, `audit_logs`, `mailboxes`, `alembic_version`.
+  `messages`, `audit_logs`, `mailboxes`, `password_reset_tokens`,
+  `alembic_version`.
 - pgvector: extension available on the instance; enabled in Phase 4.
 - Schema source of truth: Alembic (`alembic upgrade head`). No `create_all`.
 
@@ -64,6 +66,10 @@ managed Postgres.
 - Access token: JWT, `ACCESS_TOKEN_EXPIRE_MINUTES` (default 480).
 - Refresh token: opaque, SHA-256 hashed in `refresh_tokens`, 30-day default;
   rotated on `/auth/refresh`, revoked on `/auth/logout`.
+- Password reset: `/auth/forgot-password` + `/auth/reset-password`; opaque
+  SHA-256-hashed tokens in `password_reset_tokens`, single-use, 30-min
+  default. Completing a reset revokes all the user's refresh tokens. Reset
+  email sent via Resend (`email_service`).
 - RBAC: roles `owner` / `agent`; `require_owner` dependency.
 - Rate limiting: slowapi, in-memory store (needs Redis for multi-instance).
 

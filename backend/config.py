@@ -50,5 +50,21 @@ class Settings:
     # crypto helper fails loudly on first use if it is missing or invalid.
     MAILBOX_ENCRYPTION_KEY: str | None = os.getenv("MAILBOX_ENCRYPTION_KEY")
 
+    # --- Transactional email (Resend) ---
+    # Platform email (password resets), distinct from per-Company support
+    # mailboxes. Optional at startup; the email service fails loudly on first
+    # use if the key is missing.
+    RESEND_API_KEY: str | None = os.getenv("RESEND_API_KEY")
+    RESEND_FROM_EMAIL: str = os.getenv(
+        "RESEND_FROM_EMAIL", "onboarding@resend.dev"
+    )
+
+    # --- Password reset ---
+    # Base URL the reset link points at (the frontend reset page; Phase 7).
+    APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:8000")
+    RESET_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "30")
+    )
+
 
 settings = Settings()

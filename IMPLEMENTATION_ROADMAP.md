@@ -6,9 +6,10 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 3 chunk 4 complete on `feature/phase-3-mailbox`
-— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 5 — forgot/reset
-password. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 3 complete (chunks 1–5) on
+`feature/phase-3-mailbox`; Phases 0–2 are merged to `main`. Next: merge to
+`main` (on the user's OK), then Phase 4 — RAG hardening. See
+`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -72,7 +73,7 @@ password. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 - ☑ Write security-relevant events to `audit_logs` — chunk 4:
   `backend/services/audit_service.py`, events from the auth and message routes.
 
-## Phase 3 — Mailbox & ingestion  ◐ IN PROGRESS
+## Phase 3 — Mailbox & ingestion  ☑ DONE
 *Goal: per-Company email, safe credentials, safe queue.*
 
 - ☑ `mailboxes` table; Fernet encryption helper for credentials — chunk 1
@@ -89,7 +90,8 @@ password. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
   `FOR UPDATE SKIP LOCKED`.
 - ☑ Customer/Ticket matching on inbound mail (thread → Ticket) — done in
   Phase 2 (`find_or_open_ticket`, In-Reply-To threading); used by the worker.
-- ☐ Forgot/reset password via the transactional email provider — chunk 5.
+- ☑ Forgot/reset password via the transactional email provider (Resend) —
+  chunk 5 (`password_reset_tokens`, migration `3894e0ba0973`).
 
 ## Phase 4 — RAG hardening
 *Goal: real multi-tenant retrieval.*
