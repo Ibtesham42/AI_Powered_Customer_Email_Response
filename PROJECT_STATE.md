@@ -1,7 +1,7 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 4, chunk 3
-complete** (Phases 0–3 merged to `main`). Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phase 4 complete**
+(chunks 1–4; Phases 0–3 merged to `main`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
@@ -45,10 +45,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   inbound Messages with `review_status = awaiting_ai`, claimed with
   `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.
 - **Knowledge base** — `kb_documents` / `kb_chunks` on pgvector, per-Company.
-  `POST /data/upload` ingests in-process (extract → chunk → embed → store);
-  `rag_service.get_rag_context` retrieves by cosine distance, filtered by
-  `company_id`. Embedding model is a process singleton. The legacy FAISS
-  path is standalone-apps-only.
+  Ingestion is in-process (extract → chunk → embed → store) from file uploads
+  (`/data/upload`), URLs (`/data/url`) and FAQ entries (`/data/faq`).
+  `rag_service.retrieve` returns the nearest chunks by cosine distance,
+  filtered by `company_id`; the top chunk's similarity grounds the AI draft
+  confidence. The legacy FAISS path is standalone-apps-only.
 - **Migrations** — Alembic; current head `4da268d4e51a`.
 
 ## Deployment status

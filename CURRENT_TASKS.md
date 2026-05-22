@@ -1,49 +1,46 @@
 # Current Tasks
 
-Active checkpoint: **Phase 4 chunk 3 COMPLETE** — backend RAG retrieval runs
-on pgvector, scoped by `company_id`. The `LabData` multi-tenancy bug is fixed.
-On `feature/phase-4-rag`; Phases 0–3 are merged to `main`. Next: Phase 4
-chunk 4 (the last Phase 4 chunk).
+Active checkpoint: **Phase 4 COMPLETE** (chunks 1–4) on `feature/phase-4-rag`.
+Phases 0–3 are merged to `main`. Next: merge Phase 4 to `main`, then Phase 5.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
-## ✅ Phase 4 Chunk 3 — done (retrieval from pgvector)
+## ✅ Phase 4 Chunk 4 — done (multi-format ingestion + grounded confidence)
 
-- `backend/services/rag_service.py` — `get_rag_context(db, query, company_id)`
-  embeds the query and retrieves the nearest `kb_chunks` filtered by
-  `company_id`, by cosine distance.
-- `ai_service.generate_draft` retrieves via `rag_service`, not the legacy
-  FAISS `rag_pipeline.py`.
-- `EmbeddingModel.embed_query()`; retrieval uses the `get_embedding_model()`
-  singleton (no more per-email reload).
-- FAISS modules kept as the legacy single-tenant path (standalone apps,
-  retired in Phase 7).
+- URL ingestion — `POST /api/v1/data/url` fetches a page (`fetch_url_text`),
+  ingested as a `doc_type=url` document.
+- FAQ ingestion — `POST /api/v1/data/faq` adds a question + answer
+  (`doc_type=faq`), stored as a text file and ingested.
+- Retrieval-grounded confidence — `calculate_confidence` scores from the top
+  chunk's cosine similarity (`rag_service.retrieve` returns scored chunks).
+- `httpx` added as a dependency.
 
 See `CHANGELOG.md` for commit-level detail.
 
-## Next: Phase 4 — Chunk 4 (multi-format ingestion + grounded confidence)
+## Phase 4 complete — chunks 1–4
 
-The last Phase 4 chunk.
-
-- **URL ingestion** — fetch a web page, extract readable text, ingest as a
-  `KbDocument` (`doc_type=url`). Needs a new entry point (not a file upload),
-  e.g. `POST /api/v1/data/url`.
-- **FAQ ingestion** — add a question+answer entry directly (`doc_type=faq`),
-  e.g. `POST /api/v1/data/faq`. No file; the Q+A text is the content.
-- **Retrieval-grounded confidence** — replace the keyword heuristic in
-  `ai_service.calculate_confidence` with retrieval similarity (cosine score
-  of the top chunks) plus the LLM's self-rating.
-- File formats PDF/DOCX/CSV/TXT/JSON already work (chunk 2).
+pgvector schema (1), in-process ingestion (2), `company_id`-scoped retrieval
+(3) — fixing the `LabData` multi-tenancy bug — and multi-format ingestion +
+grounded confidence (4).
 
 ## Immediate next steps for the next session
 1. Read `PROJECT_STATE.md`.
-2. `git checkout feature/phase-4-rag`; confirm `alembic current` =
-   `4da268d4e51a`.
-3. Implement Chunk 4; commit; sync the docs.
-4. After chunk 4: Phase 4 is complete — merge `feature/phase-4-rag` → `main`
-   (on the user's OK).
+2. Merge `feature/phase-4-rag` → `main` (on the user's OK).
+3. Start Phase 5.
+
+## Next: Phase 5 — AI pipeline
+*Goal: structured, memory-aware, escalation-driven generation.*
+- One structured Groq call → `{intent, confidence, draft, needs_human}`
+  (folds in the LLM self-rating deferred from Phase 4).
+- Move the Groq model name + params into config (currently hardcoded in
+  `app/llm/llm_client.py`).
+- Memory injection: current Ticket verbatim + past-Ticket summaries.
+- Generate a Ticket `summary` on resolve/close.
+- Hallucination-reduction prompt: answer only from context, else defer.
+- Escalation engine: low confidence, human request, complaint, repeated
+  replies, manual reject.
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see
   `PROJECT_STATE.md` → Known bugs).
-- The embedding model + Groq are heavy/need network — verify through the
+- The embedding model + Groq are heavy / need network — verify through the
   running app where practical.

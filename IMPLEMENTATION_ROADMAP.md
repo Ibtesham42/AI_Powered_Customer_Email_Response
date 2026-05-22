@@ -6,10 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 4 chunk 3 complete on `feature/phase-4-rag`
-— Phases 0–3 are merged to `main`. Next: Phase 4 chunk 4 — multi-format
-ingestion + retrieval-grounded confidence. See `CURRENT_TASKS.md` and
-`PROJECT_STATE.md`.
+**Current checkpoint:** Phase 4 complete (chunks 1–4) on `feature/phase-4-rag`;
+Phases 0–3 are merged to `main`. Next: merge to `main` (on the user's OK),
+then Phase 5 — AI pipeline. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -93,7 +92,7 @@ ingestion + retrieval-grounded confidence. See `CURRENT_TASKS.md` and
 - ☑ Forgot/reset password via the transactional email provider (Resend) —
   chunk 5 (`password_reset_tokens`, migration `3894e0ba0973`).
 
-## Phase 4 — RAG hardening  ◐ IN PROGRESS
+## Phase 4 — RAG hardening  ☑ DONE
 *Goal: real multi-tenant retrieval.*
 
 - ☑ Move embeddings to pgvector (`kb_chunks`); per-Company isolation —
@@ -105,8 +104,11 @@ ingestion + retrieval-grounded confidence. See `CURRENT_TASKS.md` and
   both the ingest and retrieval paths use it.
 - ☑ Replace `subprocess` KB training with an in-process background task —
   chunk 2 (`/data/upload` → FastAPI `BackgroundTasks`).
-- ☐ Multi-format ingestion: PDF, DOCX, CSV, TXT, URL, FAQ.
-- ☐ Retrieval-grounded confidence (similarity + LLM self-rating).
+- ☑ Multi-format ingestion: PDF, DOCX, CSV, TXT, JSON (chunk 2), URL, FAQ
+  (chunk 4).
+- ☑ Retrieval-grounded confidence — chunk 4: confidence from the top chunk's
+  cosine similarity. (The LLM self-rating component is delivered by Phase 5's
+  structured generation call.)
 
 ## Phase 5 — AI pipeline
 *Goal: structured, memory-aware, escalation-driven generation.*

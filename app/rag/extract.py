@@ -10,6 +10,8 @@ import json
 import re
 from pathlib import Path
 
+import httpx
+from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 
@@ -94,3 +96,27 @@ def extract_text(path: str) -> str:
     if extractor is None:
         raise UnsupportedFileType(f"Unsupported file type: {ext!r}")
     return _normalise(extractor(path))
+
+
+def fetch_url_text(url: str) -> str:
+    """Fetch a web page and extract its readable text.
+
+    Raises ``ValueError`` if the page cannot be fetched.
+    """
+    try:
+        response = httpx.get(
+            url,
+            timeout=15,
+            follow_redirects=True,
+            headers={"User-Agent": "AICustomerSupportBot/1.0"},
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise ValueError(f"could not fetch URL: {exc}") from exc
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    for tag in soup(
+        ["script", "style", "nav", "header", "footer", "noscript"]
+    ):
+        tag.decompose()
+    return _normalise(soup.get_text(separator="\n"))

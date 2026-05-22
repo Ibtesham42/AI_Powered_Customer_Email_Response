@@ -1,4 +1,10 @@
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    EmailStr,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 
 
 class SignupRequest(BaseModel):
@@ -85,6 +91,26 @@ class ResetPasswordRequest(BaseModel):
         if len(value) < 8:
             raise ValueError("password must be at least 8 characters")
         return value
+
+
+class UrlIngestRequest(BaseModel):
+    """Body for ingesting a web page into the knowledge base."""
+
+    url: HttpUrl
+
+
+class FaqIngestRequest(BaseModel):
+    """Body for adding an FAQ entry to the knowledge base."""
+
+    question: str
+    answer: str
+
+    @field_validator("question", "answer")
+    @classmethod
+    def not_blank(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
 
 
 class MailboxConnectRequest(BaseModel):

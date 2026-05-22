@@ -2,9 +2,8 @@
 
 The knowledge base lives in `kb_chunks` (pgvector). Retrieval embeds the query
 and returns the nearest chunks for *one* Company: tenant isolation is the
-`company_id` filter, exactly like every other query. This replaces the legacy
-FAISS path (`app/rag/rag_pipeline.py`), which shared a single hardcoded index
-across all tenants.
+`company_id` filter. Each result carries its cosine distance, which feeds the
+retrieval-grounded confidence score in ``ai_service``.
 """
 
 from sqlalchemy.orm import Session
@@ -18,31 +17,24 @@ logger = get_logger(__name__)
 DEFAULT_TOP_K = 5
 
 
-def retrieve_chunks(
+def retrieve(
     db: Session, query: str, company_id: int, k: int = DEFAULT_TOP_K
-) -> list[KbChunk]:
-    """The ``k`` nearest knowledge-base chunks for a Company, by cosine
-    distance. Scoped strictly to ``company_id``."""
+) -> list[tuple[KbChunk, float]]:
+    """The ``k`` nearest knowledge-base chunks for a Company.
+
+    Returns ``(chunk, cosine_distance)`` pairs, nearest first. Scoped strictly
+    to ``company_id``; an empty list if the Company has no knowledge base.
+    """
     query_vector = get_embedding_model().embed_query(query)
-    return (
-        db.query(KbChunk)
+    distance = KbChunk.embedding.cosine_distance(query_vector)
+    rows = (
+        db.query(KbChunk, distance.label("distance"))
         .filter(KbChunk.company_id == company_id)
-        .order_by(KbChunk.embedding.cosine_distance(query_vector))
+        .order_by(distance)
         .limit(k)
         .all()
     )
-
-
-def get_rag_context(
-    db: Session, query: str, company_id: int, k: int = DEFAULT_TOP_K
-) -> str:
-    """Newline-joined text of the top-k retrieved chunks for a Company.
-
-    Returns an empty string if the Company has no knowledge base yet — the
-    caller (the LLM prompt) handles a missing context gracefully.
-    """
-    chunks = retrieve_chunks(db, query, company_id, k)
     logger.info(
-        "RAG retrieved %d chunk(s) for company %s", len(chunks), company_id
+        "RAG retrieved %d chunk(s) for company %s", len(rows), company_id
     )
-    return "\n".join(chunk.content for chunk in chunks)
+    return [(row[0], float(row[1])) for row in rows]

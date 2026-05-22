@@ -17,6 +17,8 @@ from app.rag.extract import SUPPORTED_EXTENSIONS
 from backend.auth.dependencies import get_current_user, require_owner
 from backend.database import get_db
 from backend.logging_config import get_logger
+from backend.models.enums import KbDocType
+from backend.models.schemas import FaqIngestRequest, UrlIngestRequest
 from backend.serializers import kb_document_dict
 from backend.services import audit_service, kb_service
 
@@ -78,6 +80,76 @@ def upload_file(
 
     return {
         "message": "File uploaded; indexing started.",
+        "document": kb_document_dict(document),
+    }
+
+
+@router.post("/url")
+def ingest_url(
+    payload: UrlIngestRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    user=Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    """Ingest a web page into the knowledge base (Owner-only). The page is
+    fetched, extracted, chunked and embedded by a background task."""
+    company_id = user["company_id"]
+    url = str(payload.url)
+
+    document = kb_service.create_document(
+        db,
+        company_id,
+        filename=url,
+        source_uri=url,
+        doc_type=KbDocType.URL,
+    )
+    background_tasks.add_task(kb_service.ingest_document, document.id)
+
+    audit_service.record(
+        db,
+        action="kb_document_uploaded",
+        request=request,
+        company_id=company_id,
+        user_id=user["id"],
+        entity_type="kb_document",
+        entity_id=document.id,
+        metadata={"url": url},
+    )
+    return {
+        "message": "URL submitted; indexing started.",
+        "document": kb_document_dict(document),
+    }
+
+
+@router.post("/faq")
+def ingest_faq(
+    payload: FaqIngestRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    user=Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    """Add an FAQ entry to the knowledge base (Owner-only)."""
+    company_id = user["company_id"]
+
+    document = kb_service.create_faq(
+        db, company_id, question=payload.question, answer=payload.answer
+    )
+    background_tasks.add_task(kb_service.ingest_document, document.id)
+
+    audit_service.record(
+        db,
+        action="kb_document_uploaded",
+        request=request,
+        company_id=company_id,
+        user_id=user["id"],
+        entity_type="kb_document",
+        entity_id=document.id,
+        metadata={"faq_question": payload.question[:100]},
+    )
+    return {
+        "message": "FAQ added; indexing started.",
         "document": kb_document_dict(document),
     }
 

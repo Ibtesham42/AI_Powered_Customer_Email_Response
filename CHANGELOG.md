@@ -5,6 +5,18 @@ each entry references its git commit.
 
 ## Phase 4 — RAG hardening (in progress) · branch `feature/phase-4-rag`
 
+### Chunk 4 — multi-format ingestion + grounded confidence (completes Phase 4)
+- URL ingestion — `POST /api/v1/data/url` fetches a web page
+  (`app/rag/extract.fetch_url_text`, BeautifulSoup), ingested as a
+  `doc_type=url` KbDocument.
+- FAQ ingestion — `POST /api/v1/data/faq` adds a question + answer entry
+  (`doc_type=faq`), stored as a text file and ingested like any other source.
+- Retrieval-grounded confidence — `ai_service.calculate_confidence` now
+  scores from the top chunk's cosine similarity (`rag_service.retrieve`
+  returns `(chunk, distance)` pairs), replacing the keyword heuristic. The
+  LLM self-rating component lands with Phase 5's structured call.
+- `httpx` added as a direct dependency.
+
 ### Chunk 3 — retrieval from pgvector (multi-tenancy fix)
 - `backend/services/rag_service.py` — `get_rag_context(db, query, company_id)`
   embeds the query and retrieves the nearest `kb_chunks` **filtered by

@@ -1,5 +1,5 @@
 """AI draft generation for inbound Messages — RAG retrieval + LLM + a
-confidence heuristic. Persistence is handled by ticket_service.
+retrieval-grounded confidence score. Persistence is handled by ticket_service.
 """
 
 import logging
@@ -9,22 +9,33 @@ from sqlalchemy.orm import Session
 from app.llm.llm_client import LLMClient
 from app.llm.prompt_builder import build_email_prompt
 from backend.models.enums import MessageDirection
+from backend.models.kb_chunk import KbChunk
 from backend.models.message import Message
-from backend.services.rag_service import get_rag_context
+from backend.services import rag_service
 
 logger = logging.getLogger(__name__)
 
 
-def calculate_confidence(context: str, response: str) -> int:
-    """Heuristic 0-100 confidence. Retrieval-grounded scoring is Phase 4."""
-    score = 0
-    if context and len(context) > 50:
-        score += 40
-    if response and len(response) > 100:
-        score += 30
-    if "not enough information" not in response.lower():
-        score += 30
-    return min(score, 100)
+def calculate_confidence(
+    chunks: list[tuple[KbChunk, float]], response: str
+) -> int:
+    """Confidence 0-100, grounded in retrieval similarity.
+
+    The dominant signal is how closely the knowledge base matched the query —
+    a reply the KB cannot support must not score high. A light response check
+    catches explicit non-answers. (The LLM's own self-rating is added by the
+    structured generation call in Phase 5.)
+    """
+    if not chunks:
+        return 10  # nothing retrieved — the KB has no answer for this query
+
+    # pgvector cosine_distance is in [0, 2]; similarity = 1 - distance.
+    top_distance = chunks[0][1]
+    similarity = max(0.0, min(1.0, 1.0 - top_distance))
+    score = similarity * 90.0
+    if response and "not enough information" not in response.lower():
+        score += 10.0
+    return int(min(score, 100.0))
 
 
 def get_ticket_history(
@@ -50,7 +61,8 @@ def generate_draft(db: Session, message: Message) -> dict:
     Returns ``{"reply": str, "confidence": int}``. Persistence is the caller's
     job — see ``ticket_service.record_ai_draft``.
     """
-    context = get_rag_context(db, message.body, message.company_id)
+    chunks = rag_service.retrieve(db, message.body, message.company_id)
+    context = "\n".join(chunk.content for chunk, _distance in chunks)
     history = get_ticket_history(
         db, message.ticket_id, before_message_id=message.id
     )
@@ -61,7 +73,7 @@ def generate_draft(db: Session, message: Message) -> dict:
     )
     prompt = build_email_prompt(full_input, [context])
     response = LLMClient().generate(prompt)
-    confidence = calculate_confidence(context, response)
+    confidence = calculate_confidence(chunks, response)
 
     logger.info(
         "Generated draft for message %s (confidence=%s)", message.id, confidence
