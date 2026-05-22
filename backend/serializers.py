@@ -2,6 +2,7 @@
 JSON layer and the response shape consistent across routes.
 """
 
+from backend.models.mailbox import Mailbox
 from backend.models.message import Message
 from backend.models.ticket import Ticket
 
@@ -34,4 +35,19 @@ def message_dict(message: Message) -> dict:
         "confidence": message.confidence,
         "ai_draft": message.ai_draft,
         "final_reply": message.final_reply,
+    }
+
+
+def mailbox_dict(mailbox: Mailbox) -> dict:
+    """Serialize a Mailbox for an API response. Never includes the encrypted
+    credential."""
+    return {
+        "id": mailbox.id,
+        "company_id": mailbox.company_id,
+        "email_address": mailbox.email_address,
+        "provider": mailbox.provider,
+        "imap_host": mailbox.imap_host,
+        "smtp_host": mailbox.smtp_host,
+        "status": mailbox.status,
+        "last_polled_at": mailbox.last_polled_at,
     }

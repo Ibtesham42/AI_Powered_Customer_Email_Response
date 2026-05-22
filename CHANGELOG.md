@@ -5,6 +5,18 @@ each entry references its git commit.
 
 ## Phase 3 — Mailbox & ingestion (in progress) · branch `feature/phase-3-mailbox`
 
+### Chunk 2 — mailbox connector + connect route
+- `app/email/mailbox_connector.py` — `MailboxConnector` abstraction with an
+  `AppPasswordConnector` (IMAP/SMTP App Password, OAuth-ready). `verify()`
+  checks both IMAP and SMTP login; `MailboxError` carries a user-facing message.
+- `backend/services/mailbox_service.py` — `connect_mailbox()` verifies first,
+  then stores the credential encrypted (one Mailbox per Company; re-connecting
+  replaces it, and a failed verify writes nothing).
+- `POST /api/v1/mailbox/connect` (Owner-only) and `GET /api/v1/mailbox` —
+  `routes/mailbox.py`. Connect emits a `mailbox_connected` audit event.
+- `MailboxConnectRequest` schema (strips App Password whitespace);
+  `mailbox_dict` serializer never exposes the credential.
+
 ### Chunk 1 — mailboxes table + credential encryption
 - New `mailboxes` table (migration `0e9582994b57`) — one support mailbox per
   Company; the App Password is stored Fernet-encrypted in

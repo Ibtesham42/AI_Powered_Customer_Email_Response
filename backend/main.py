@@ -10,6 +10,7 @@ from backend.routes import (
     auth,
     dashboard,
     data,
+    mailbox,
     messages,
     protected,
     tickets,
@@ -41,6 +42,7 @@ api_v1.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_v1.include_router(protected.router, prefix="/user", tags=["User"])
 api_v1.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_v1.include_router(data.router, prefix="/data", tags=["Data"])
+api_v1.include_router(mailbox.router, prefix="/mailbox", tags=["Mailbox"])
 api_v1.include_router(tickets.router, prefix="/tickets", tags=["Tickets"])
 api_v1.include_router(messages.router, prefix="/messages", tags=["Messages"])
 app.include_router(api_v1)

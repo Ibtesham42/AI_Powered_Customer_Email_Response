@@ -46,8 +46,8 @@ Legend: **[now]** exists today (possibly under a different path) ·
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/` | **[new]** Connection status (never returns the credential). |
-| POST | `/connect` | **[new]** *(Owner)* Body: email_address, app_password. Verifies IMAP/SMTP login, stores the credential encrypted. |
+| GET | `/` | **[done]** Connection status (never returns the credential). `404` if none connected. |
+| POST | `/connect` | **[done]** *(Owner)* Body: email_address, app_password, optional imap_host/smtp_host. Verifies IMAP **and** SMTP login before saving; stores the App Password Fernet-encrypted. Audited (`mailbox_connected`). |
 | POST | `/test` | **[new]** Re-verify the stored connection. |
 | DELETE | `/` | **[new]** *(Owner)* Disconnect the mailbox. |
 

@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 3 chunk 1 complete on `feature/phase-3-mailbox`
-— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 2 — mailbox connector
-abstraction + `/mailbox/connect`. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 3 chunk 2 complete on `feature/phase-3-mailbox`
+— Phases 0–2 are merged to `main`. Next: Phase 3 chunk 3 — the worker polls
+each Company's mailbox. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -77,8 +77,10 @@ abstraction + `/mailbox/connect`. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 - ☑ `mailboxes` table; Fernet encryption helper for credentials — chunk 1
   (`backend/crypto.py`, migration `0e9582994b57`).
-- ☐ Mailbox connector abstraction (App Password impl now, OAuth-ready).
-- ☐ `/mailbox/connect` — verify IMAP/SMTP before saving.
+- ☑ Mailbox connector abstraction (App Password impl now, OAuth-ready) —
+  chunk 2 (`app/email/mailbox_connector.py`).
+- ☑ `/mailbox/connect` — verify IMAP/SMTP before saving — chunk 2
+  (`routes/mailbox.py`, `services/mailbox_service.py`).
 - ☐ Worker polls **each** Company's mailbox (remove hardcoded `company_id=1`
   and global `EMAIL_USER`).
 - ☐ DB-backed queue: drop `email_queue.json`; queue = `messages WHERE
