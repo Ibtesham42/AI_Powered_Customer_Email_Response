@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ReviewQueuePage from './pages/ReviewQueuePage'
 import SignupPage from './pages/SignupPage'
+import TicketDetailPage from './pages/TicketDetailPage'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<ReviewQueuePage />} />
+              <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

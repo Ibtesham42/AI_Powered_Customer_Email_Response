@@ -1,9 +1,20 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 3 done** (review queue) on
+Active checkpoint: **Phase 6 chunk 4 done** (draft review) on
 `feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ✅ Phase 6 Chunk 4 — done (draft review)
+
+- `TicketDetailPage` (`/tickets/:ticketId`): `GET /tickets/{id}`, ticket header
+  (status + escalated badges) + conversation thread (text, not HTML). Queue
+  cards link here.
+- `ReviewPanel`: the six actions on `/messages/{id}/*` — regenerate, reject &
+  escalate, approve as-is, save reply, send (enabled only when REVIEWED).
+  Per-action busy/error; refetch on success.
+- `api/messages.ts` + `getTicket`; `MessageDetail`/`TicketDetailResponse` types.
+- Verified: lint, strict build, proxy auth-gating check on the new routes.
 
 ## ✅ Phase 6 Chunk 3 — done (review queue)
 
@@ -43,17 +54,16 @@ History: `CHANGELOG.md`.
 3. ☑ Review queue (primary surface): `GET /tickets/queue`, confidence sort +
    intent badges; loading/empty/error states. (Escalated Tickets are excluded
    from this queue by the backend — a separate escalations view is a later add.)
-4. ☐ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
+4. ☑ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
    history (Customer text rendered as text, never HTML).
 5. ☐ KB upload panel (file/URL/FAQ) + mailbox connection panel.
 6. ☐ Analytics / dashboard overview (`/dashboard`).
 7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Start Phase 6 chunk 4 — draft review: a ticket/message detail view with
-   approve/edit/rewrite/reject/regenerate/send, using the `/messages/{id}/*`
-   routes and `GET /tickets/{id}` for the conversation history. Make queue
-   cards link into it.
+1. Start Phase 6 chunk 5 — KB upload panel (file/URL/FAQ via `/data/upload`,
+   `/data/url`, `/data/faq`) with index status, and a mailbox connection panel
+   (`/mailbox`, `/mailbox/connect`). Add nav items for them in `AppLayout`.
 
 ## Done so far
 Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model

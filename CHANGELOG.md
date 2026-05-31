@@ -5,6 +5,23 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 4 — draft review
+- `TicketDetailPage` (`/tickets/:ticketId`): `GET /tickets/{id}` with
+  loading/error states; ticket header (status + escalated badges), customer,
+  and the full Message thread as bubbles (Customer vs Support; bodies rendered
+  as **text**, never HTML). Queue cards now link here.
+- `ReviewPanel` — the six review actions wired to `/messages/{id}/*`: editable
+  draft textarea + Regenerate, Reject & escalate, Approve as-is, Save reply,
+  and Send (enabled only once REVIEWED — the backend's two-step
+  DRAFTED→REVIEWED→SENT flow). Per-action busy + error states; refetches on
+  success, navigates to the queue on escalate.
+- `api/messages.ts` (regenerate/save/approve/reject/send) + `api/tickets.getTicket`;
+  `MessageDetail`/`TicketSummary`/`TicketDetailResponse` types (`QueueItem` now
+  extends `MessageDetail`). `TicketStatusBadge`/`EscalatedBadge`; the
+  `reviewStatusLabel` helper moved to `lib/labels.ts`.
+- Verified: lint, strict build, and a live proxy check that
+  `/tickets/{id}` + the message-action routes are reachable and auth-gated.
+
 ### Chunk 3 — review queue
 - `AppLayout` — authed app shell (header with user/role + sign-out, nav,
   `Outlet`); protected routes now nest under it. The placeholder DashboardPage

@@ -1,4 +1,4 @@
-import type { Intent } from '../lib/types'
+import type { Intent, TicketStatus } from '../lib/types'
 
 const INTENT_LABELS: Record<Intent, string> = {
   product_inquiry: 'Product inquiry',
@@ -40,6 +40,31 @@ export function IntentBadge({ intent }: { intent: Intent | null }) {
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
       {INTENT_LABELS[intent]}
+    </span>
+  )
+}
+
+const TICKET_STATUS_TONE: Record<TicketStatus, string> = {
+  open: 'bg-sky-100 text-sky-700',
+  pending: 'bg-amber-100 text-amber-700',
+  resolved: 'bg-emerald-100 text-emerald-700',
+  closed: 'bg-slate-100 text-slate-600',
+}
+
+export function TicketStatusBadge({ status }: { status: TicketStatus }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${TICKET_STATUS_TONE[status]}`}
+    >
+      {status}
+    </span>
+  )
+}
+
+export function EscalatedBadge({ reason }: { reason: string | null }) {
+  return (
+    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+      Escalated{reason ? `: ${reason.replace(/_/g, ' ')}` : ''}
     </span>
   )
 }

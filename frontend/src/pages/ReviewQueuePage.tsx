@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { getReviewQueue } from '../api/tickets'
 import { ConfidenceBadge, IntentBadge } from '../components/Badge'
@@ -12,7 +13,10 @@ type State =
 
 function QueueCard({ item }: { item: QueueItem }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <Link
+      to={`/tickets/${item.ticket_id}`}
+      className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
@@ -47,7 +51,7 @@ function QueueCard({ item }: { item: QueueItem }) {
           </p>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
