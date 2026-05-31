@@ -3,6 +3,23 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
+## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
+
+### Chunk 0 — adopt Vite + React (ADR-0004)
+- Frontend strategy pivot: a Vite + React + TS + Tailwind SPA replaces both the
+  planned Streamlit-polish phase and the Next.js phase. `docs/adr/0004`,
+  roadmap Phase 6 rewrite, `frontend-engineer.md` and CLAUDE.md updated.
+
+### Chunk 1 — scaffold
+- `frontend/` — Vite 5 + React 18 + TypeScript (strict) app, Tailwind CSS v4
+  (via `@tailwindcss/vite`), ESLint (flat config) + Prettier.
+- `vite.config.ts` proxies `/api` and `/health` to the FastAPI backend at
+  `127.0.0.1:8000` — same-origin in dev, no CORS (ADR-0004).
+- Minimal landing page (`App.tsx`) with a typed `/health` connectivity check
+  (loading / ok / error states). Template demo cruft removed.
+- `frontend/README.md` documents the stack, dev proxy, and scripts. Verified:
+  `npm run lint`, `format:check`, and `build` (incl. `tsc -b`) all clean.
+
 ## Phase 5 — AI pipeline (done) · merged to `main`
 
 ### Chunk 4 — escalation engine (completes Phase 5)

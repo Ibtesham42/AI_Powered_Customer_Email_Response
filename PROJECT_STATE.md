@@ -1,8 +1,8 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 5 complete**
-(chunks 1–4; Phases 0–5 merged to `main`). Next: Phase 6 (dashboard polish).
-Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phase 6 chunk 1**
+(Phases 0–5 merged to `main`; the React frontend scaffold is on
+`feature/phase-6-frontend`). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
@@ -17,7 +17,10 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **`app/`** — framework-agnostic RAG / LLM / email engine.
 - **`backend/`** — FastAPI SaaS: routes (under `/api/v1`), `auth/`,
   `services/`, `models/`, `config.py`, `logging_config.py`, `rate_limit.py`.
-- **`dashboard_app.py`** — Streamlit admin dashboard (legacy; Next.js planned).
+- **`dashboard_app.py`** — Streamlit admin dashboard (legacy; kept working
+  until the React SPA reaches parity, then retired — ADR-0004).
+- **`frontend/`** — the production UI: Vite + React + TS + Tailwind SPA
+  (ADR-0004). Scaffolded; talks to the backend over `/api/v1` (Vite dev proxy).
 - **`scripts/email_worker.py`** — background IMAP poll + AI queue worker.
 
 ## Completed modules

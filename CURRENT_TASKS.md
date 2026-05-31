@@ -1,68 +1,47 @@
 # Current Tasks
 
-Active checkpoint: **Phase 5 COMPLETE** (chunks 1–4) — merged to `main`.
-Phases 0–5 are now on `main`. Next: Phase 6 (dashboard polish).
-Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
+Active checkpoint: **Phase 6 chunk 1 done** (Vite + React scaffold) on
+`feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
+Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
+History: `CHANGELOG.md`.
 
-## ✅ Phase 5 Chunk 4 — done (escalation engine, completes Phase 5)
+## ✅ Phase 6 Chunk 1 — done (Vite + React scaffold)
 
-- `escalation_service.evaluate` / `apply_draft_escalation` — escalate a fresh
-  draft's Ticket on (priority order) `needs_human` → complaint → repeated
-  replies (≥ `ESCALATION_MAX_REPLIES` out) → low confidence
-  (< `ESCALATION_CONFIDENCE_THRESHOLD`). Idempotent; manual reject is the 5th
-  rule (already at `/messages/{id}/reject`).
-- Wired into the worker and `/messages/{id}/regenerate`; consumes chunk 2's
-  `needs_human`. `ticket_service.count_outbound_messages` backs the repeated
-  rule. Thresholds in `backend/config.py` + `.env.example`.
-- Verified: full rule/priority/boundary/idempotency unit tests.
+- `frontend/`: Vite 5 + React 18 + TS (strict) + Tailwind v4 + ESLint + Prettier.
+- Dev proxy `/api` + `/health` → backend `127.0.0.1:8000` (no CORS in dev).
+- Landing page with a typed `/health` check (loading/ok/error). README written.
+- Verified: `npm run lint`, `format:check`, `build` (with `tsc -b`) all clean.
 
-## ✅ Phase 5 Chunk 3 — done (memory injection + Ticket summaries)
+## Phase 6 — Frontend (Vite + React) chunk plan
+*ADR-0004. Built alongside Streamlit; cut over at parity. Roadmap has detail.*
 
-- `ai_service.build_memory` — prompt input = past-Ticket summaries (budgeted to
-  1500 chars) + current Ticket conversation + current email.
-- `ticket_service.list_resolved_ticket_summaries` — tenant-scoped past-summary
-  query (newest first, capped, excludes the current Ticket).
-- `ai_service.summarize_ticket` + `build_summary_prompt` — 1-3 sentence internal
-  summary, no greetings/sign-offs/sensitive data.
-- `transition_ticket` generates the summary on RESOLVED/CLOSED (once,
-  best-effort; LLM failure never breaks the transition).
-- No migration — `tickets.summary` already exists.
-- Verified: memory/budget/summary unit tests, transition-hook gating + error
-  tests, and a live Groq summary smoke test.
-
-## ✅ Phase 5 Chunk 2 — done (structured generation call)
-
-- `build_structured_prompt` — one prompt (hallucination-reduction rules) asking
-  for a single JSON object `{intent, confidence, needs_human, draft}`; allowed
-  intents passed in so `app/` stays framework-agnostic.
-- `LLMClient.generate_structured` — Groq JSON mode (`response_format=json_object`).
-- `ai_service.generate_draft` returns `{reply, confidence, intent, needs_human}`;
-  malformed/empty output → safe defer-to-human (confidence 0, `needs_human=True`).
-- `calculate_confidence` blends retrieval similarity (0.7) + LLM self-rating
-  (0.3), halved on non-answer phrases.
-- `intent` persisted via worker + `/messages/{id}/regenerate`. `needs_human`
-  logged now; chunk 4's escalation engine consumes it.
-
-See `CHANGELOG.md` for commit-level detail.
-
-## Phase 5 — AI pipeline (chunk plan)
-*Goal: structured, memory-aware, escalation-driven generation.*
-1. ☑ LLM config + client hardening (model/params in config, singleton, timeout).
-2. ☑ Structured Groq call → `{intent, confidence, needs_human, draft}` (JSON,
-   validation + fallback) + hallucination-reduction prompt; confidence blends
-   retrieval similarity + LLM self-rating.
-3. ☑ Memory injection: current Ticket verbatim + past-Ticket summaries within a
-   token budget; generate a Ticket `summary` on resolve/close.
-4. ☑ Escalation engine: low confidence, human request, complaint, repeated
-   replies, manual reject (consumes `needs_human`).
+0. ☑ Adopt Vite + React (ADR-0004; supersedes Streamlit-polish + Next.js).
+1. ☑ Scaffold (Vite + TS + Tailwind, dev proxy, /health check).
+2. ☐ Auth: typed API client, login/signup (mirror backend validation), auth
+   store, protected routes, transparent token refresh on 401, forgot/reset.
+3. ☐ Review queue (primary surface): `GET /tickets/queue`, confidence sort +
+   escalation/intent badges; loading/empty/error states.
+4. ☐ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
+   history (Customer text rendered as text, never HTML).
+5. ☐ KB upload panel (file/URL/FAQ) + mailbox connection panel.
+6. ☐ Analytics / dashboard overview (`/dashboard`).
+7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Cut `feature/phase-6-dashboard` from `main`.
-2. Start Phase 6 — dashboard polish (review queue confidence sort + escalation
-   badges, approve/edit/reject/regenerate, conversation history, KB + mailbox
-   panels, analytics). All on the Streamlit `dashboard_app.py`.
+1. Commit chunk 1 (done in this session if not already).
+2. Start Phase 6 chunk 2 — auth (typed API client + login/signup + auth store).
+
+## Done so far
+Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model
+(Customer/Ticket/Message), mailbox + ingestion, RAG hardening (pgvector), and
+the AI pipeline (structured generation, memory + summaries, escalation engine).
+See `CHANGELOG.md` and `IMPLEMENTATION_ROADMAP.md` for the breakdown.
 
 ## Known cautions
+- Backend has **no CORS** middleware yet — the SPA relies on Vite's dev proxy;
+  production CORS/serving is a Phase 6 chunk 7 (cut-over) decision.
+- Refresh token is returned in JSON today (not an httpOnly cookie); the auth
+  chunk follows that until/unless the backend sets cookies.
 - `TestClient` is broken — test via direct route-function calls (see
   `PROJECT_STATE.md` → Known bugs).
 - The embedding model + Groq are heavy / need network — verify through the
