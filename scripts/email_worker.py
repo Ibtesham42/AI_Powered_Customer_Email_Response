@@ -162,7 +162,11 @@ def process_queue() -> None:
             try:
                 result = ai_service.generate_draft(db, message)
                 ticket_service.record_ai_draft(
-                    db, message, result["reply"], result["confidence"]
+                    db,
+                    message,
+                    result["reply"],
+                    result["confidence"],
+                    result["intent"],
                 )
                 drafted += 1
                 logger.info("Drafted reply for message %s", message.id)

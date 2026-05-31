@@ -55,6 +55,34 @@ class LLMClient:
 
         return full_response
 
+    def generate_structured(self, prompt: str) -> str:
+        """Single non-streaming call that returns a JSON string.
+
+        Uses Groq's JSON mode (``response_format=json_object``) so the model
+        must emit a syntactically valid JSON object. Parsing and validation are
+        the caller's responsibility — the model can still return the wrong
+        shape. Returns the raw JSON text ("" if the API yields no content).
+        """
+        completion = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional customer support assistant. "
+                        "Reply with a single valid JSON object only."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            response_format={"type": "json_object"},
+        )
+        content = completion.choices[0].message.content or ""
+        logger.debug("Structured LLM generation complete (%d chars)", len(content))
+        return content
+
 
 _llm_client: LLMClient | None = None
 

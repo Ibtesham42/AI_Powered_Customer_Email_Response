@@ -95,16 +95,16 @@
 # Otherwise use "Dear Customer".
 
 # Body:
-# • Acknowledge the customer's request  
-# • Provide the relevant information from the internal data  
-# • Explain the current status clearly  
+# • Acknowledge the customer's request
+# • Provide the relevant information from the internal data
+# • Explain the current status clearly
 # • Provide helpful next steps if applicable
-  
+
 
 # Closing:
 # End politely with a professional closing such as:
 
-# "Best regards,  
+# "Best regards,
 # Customer Support Team"
 
 # Constraints:
@@ -115,11 +115,6 @@
 # """
 
 #     return prompt
-
-
-
-
-
 
 
 # def build_email_prompt(customer_email, retrieved_context):
@@ -216,7 +211,7 @@
 
 # <next steps or clarification if needed>
 
-# Best regards,  
+# Best regards,
 # Customer Support Team
 
 
@@ -233,13 +228,9 @@
 #     return prompt
 
 
-
-
-
 # Template Pattern   Flipped    Question Refinement    Persona    Safety rules
 
 # This prompt stracture reference of research paper link   https://omekas-test.sba.unipi.it/files/original/9473424cea8d562f876a4bca4bedd9e2336910af.pdf
-
 
 
 def build_email_prompt(customer_email, retrieved_context):
@@ -380,13 +371,63 @@ STYLE RULES
     return prompt
 
 
+def build_structured_prompt(customer_email, retrieved_context, allowed_intents):
+    """Prompt for the single structured generation call (Phase 5).
 
+    Produces one JSON object — ``{intent, confidence, needs_human, draft}`` —
+    instead of free text, so intent and a defer-to-human signal come back with
+    the draft in a single Groq call. ``allowed_intents`` is passed in (not
+    imported) so this module stays framework-agnostic and never depends on the
+    backend's enums.
+    """
+    context = "\n\n".join(retrieved_context)
+    intents = ", ".join(allowed_intents)
 
+    prompt = f"""
+SYSTEM ROLE:
+You are a highly reliable Customer Support AI assistant for a software company.
+Act as a precise, cautious senior support specialist.
 
+OBJECTIVE:
+Read the conversation so far and the customer's latest email, then produce a
+support reply grounded ONLY in the internal data below. Accuracy and safety
+matter more than completeness.
 
+INTERNAL DATA (ONLY SOURCE OF TRUTH)
 
+{context}
 
+CONVERSATION + CURRENT CUSTOMER EMAIL
 
+{customer_email}
 
+GROUNDING RULES (MUST FOLLOW)
 
+1. Use ONLY the internal data above. Do NOT invent or guess any fact, number,
+   date, status, name, or identifier.
+2. If the data does not contain the answer, say so politely and ask for the
+   missing details — do NOT fabricate, and do NOT list unrelated records.
+3. Never expose passwords, credentials, links, internal IDs, or system fields.
+4. If the email is only a greeting, nonsense, or too vague to act on, ask for
+   clarification instead of using the data.
+5. Set "needs_human" to true when you are NOT confident the reply is correct
+   and fully supported by the data, OR the customer is angry / complaining, OR
+   the customer explicitly asks for a human.
 
+OUTPUT (STRICT)
+
+Respond with ONE valid JSON object and NOTHING else — no markdown, no code
+fence, no text before or after. Use exactly these keys:
+
+{{
+  "intent": one of [{intents}],
+  "confidence": integer 0-100 — your confidence the draft is correct and fully
+                grounded in the internal data,
+  "needs_human": boolean — see rule 5,
+  "draft": string — the full customer-facing email reply (greeting, body,
+           closing). Professional, concise (5-7 sentences), simple language.
+           Do NOT mention "internal data" or show raw database fields.
+}}
+"""
+
+    return prompt

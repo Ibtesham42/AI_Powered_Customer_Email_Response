@@ -5,6 +5,25 @@ each entry references its git commit.
 
 ## Phase 5 — AI pipeline (in progress) · branch `feature/phase-5-ai-pipeline`
 
+### Chunk 2 — structured generation call
+- `app/llm/prompt_builder.build_structured_prompt` — one prompt that carries
+  the hallucination-reduction rules and asks for a single JSON object
+  `{intent, confidence, needs_human, draft}`. Allowed intents are passed in,
+  so `app/` stays framework-agnostic (no backend-enum import).
+- `LLMClient.generate_structured` — non-streaming Groq call with
+  `response_format=json_object`; returns the raw JSON string.
+- `ai_service.generate_draft` now makes the structured call and returns
+  `{reply, confidence, intent, needs_human}`. Malformed output falls back to a
+  safe defer-to-human result (empty draft, confidence 0, `needs_human=True`)
+  rather than guessing; an empty draft is likewise forced to a human.
+- `ai_service.calculate_confidence` blends retrieval similarity (primary, 0.7)
+  with the LLM self-rating (secondary, 0.3) and halves the score on explicit
+  non-answer phrases. No-draft cases score 0 (sorts to the top of the queue).
+- `intent` is now persisted: the worker and `/messages/{id}/regenerate` pass
+  `result["intent"]` to `record_ai_draft` (which already accepted it).
+- `needs_human` is produced and logged now; Phase 5 chunk 4's escalation engine
+  is what acts on it.
+
 ### Chunk 1 — LLM config + client hardening
 - Groq model name and generation params moved out of the hardcoded
   `app/llm/llm_client.py` into `app/utils/config.py` (`Config.MODEL_NAME`,

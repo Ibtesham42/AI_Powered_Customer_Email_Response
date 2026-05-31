@@ -35,7 +35,7 @@ def regenerate_draft(
     message = _require_message(db, user["company_id"], message_id)
     result = ai_service.generate_draft(db, message)
     ticket_service.record_ai_draft(
-        db, message, result["reply"], result["confidence"]
+        db, message, result["reply"], result["confidence"], result["intent"]
     )
     return message_dict(message)
 
@@ -117,9 +117,7 @@ def send_reply(
         else None
     )
     if ticket is None or customer is None:
-        raise HTTPException(
-            status_code=404, detail="Ticket or customer not found"
-        )
+        raise HTTPException(status_code=404, detail="Ticket or customer not found")
 
     reply_text = message.final_reply
     if not reply_text:

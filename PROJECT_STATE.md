@@ -1,7 +1,7 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 5 chunk 1**
-(Phases 0–4 merged to `main`; chunk 1 on `feature/phase-5-ai-pipeline`).
+Snapshot of the AI Customer Support SaaS as of **Phase 5 chunk 2**
+(Phases 0–4 merged to `main`; chunks 1–2 on `feature/phase-5-ai-pipeline`).
 Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
@@ -49,6 +49,12 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   (`MODEL_NAME`, `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_TIMEOUT`),
   env-overridable; the Groq client carries a request timeout. Construct once
   per process via `app.llm.llm_client.get_llm_client()`.
+- **Draft generation** — `ai_service.generate_draft` makes one structured Groq
+  call (`build_structured_prompt` + `generate_structured`, JSON mode) returning
+  `{intent, confidence, needs_human, draft}`. Malformed/empty output falls back
+  to a safe defer-to-human result. Confidence blends retrieval similarity
+  (primary) with the LLM self-rating (secondary). `intent` is persisted on the
+  Message; `needs_human` is logged and awaits the chunk-4 escalation engine.
 - **Knowledge base** — `kb_documents` / `kb_chunks` on pgvector, per-Company.
   Ingestion is in-process (extract → chunk → embed → store) from file uploads
   (`/data/upload`), URLs (`/data/url`) and FAQ entries (`/data/faq`).

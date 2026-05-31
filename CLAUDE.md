@@ -80,10 +80,11 @@ Inbound email (email_worker.py polling each Company's mailbox over IMAP)
        (an awaiting_ai Message *is* the AI queue — no separate store)
   -> email_worker.py claims awaiting_ai Messages (FOR UPDATE SKIP LOCKED)
        -> ai_service.generate_draft()
-       -> rag_service.get_rag_context()  (pgvector, company-scoped)
-       -> build_email_prompt() -> LLMClient.generate()  (Groq)
-       -> confidence heuristic
-  -> ticket_service.record_ai_draft(): ai_draft + confidence saved,
+       -> rag_service.retrieve()  (pgvector, company-scoped)
+       -> build_structured_prompt() -> get_llm_client().generate_structured()
+          (one Groq JSON call -> {intent, confidence, needs_human, draft})
+       -> confidence = retrieval similarity blended with the LLM self-rating
+  -> ticket_service.record_ai_draft(): ai_draft + confidence + intent saved,
      review_status=DRAFTED
   -> dashboard GET /api/v1/tickets/queue  (lowest confidence first)
   -> agent edits -> PUT /api/v1/messages/{id}/draft -> review_status=REVIEWED
