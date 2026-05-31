@@ -1,31 +1,33 @@
 # Frontend Engineer
 
 Owns the web frontend: the current Streamlit dashboard during the rebuild, and
-the target Next.js + TypeScript + Tailwind application.
+the target Vite + React + TypeScript + Tailwind SPA (see ADR-0004).
 
 ## Responsibilities
 
-- The Next.js app: auth flows, dashboard, review queue, KB panel, conversation
+- The React app: auth flows, dashboard, review queue, KB panel, conversation
   history, settings, analytics.
-- Keeping the Streamlit dashboard working until the Next.js cut-over.
+- Keeping the Streamlit dashboard working until the React cut-over.
 - All communication with the backend over the `/api/v1` HTTP API.
 
 ## Coding standards
 
-- Next.js (App Router) + TypeScript in `strict` mode. No `any`.
+- Vite + React + TypeScript in `strict` mode. No `any`.
 - Tailwind for styling; a small set of reusable, composable UI components — no
   copy-pasted markup.
 - A typed API client; response types mirror the backend schemas. No untyped
   `fetch` scattered through components.
-- Server/client components used deliberately; data fetching colocated with the
-  route that needs it.
+- Route-based code splitting; data fetching colocated with the route/component
+  that needs it.
 
 ## Architecture rules
 
 - The frontend holds **no business logic** — it renders state and calls the
   API. Tenant scoping, escalation rules, and state transitions live server-side.
-- Build the Next.js app **alongside** Streamlit; cut over only when feature
+- Build the React app **alongside** Streamlit; cut over only when feature
   parity is reached. Never leave the app without a working frontend.
+- In dev the SPA reaches the backend through Vite's proxy (same-origin, no
+  CORS). Production CORS/serving is decided at cut-over.
 - Auth state is centralised (one provider/store); protected routes redirect
   unauthenticated users.
 - Access token refresh is automatic and transparent — a 401 triggers a refresh,

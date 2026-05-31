@@ -6,9 +6,10 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 5 complete (chunks 1–4), merged to `main`;
-Phases 0–5 are now on `main`. Next: Phase 6 — dashboard polish. See
-`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phases 0–5 merged to `main`. Phase 6 — the Vite + React
+frontend (ADR-0004, supersedes the old Streamlit-polish + Next.js plans) — in
+progress on `feature/phase-6-frontend`. See `CURRENT_TASKS.md` and
+`PROJECT_STATE.md`.
 
 ---
 
@@ -22,7 +23,7 @@ Phases 0–5 are now on `main`. Next: Phase 6 — dashboard polish. See
 - ☑ Fix `backend/main.py` duplicate imports and includes.
 - ☑ Decide the fate of legacy standalone apps (`chat_app.py`,
   `email_streamlit_ui.py`) — **kept as reference** for now; remove once the
-  Next.js frontend lands (Phase 7).
+  Vite + React frontend lands (Phase 6; see ADR-0004).
 - ☑ Add `ruff` + `black` + `mypy` config (`pyproject.toml`,
   `requirements-dev.txt`); touched files are lint-clean. mypy is lenient —
   strictness ramps up per-module in later phases.
@@ -134,25 +135,34 @@ Phases 0–5 are now on `main`. Next: Phase 6 — dashboard polish. See
   (`evaluate` / `apply_draft_escalation`), wired into the worker and
   `/messages/{id}/regenerate`; thresholds in `backend/config.py`.
 
-## Phase 6 — Dashboard polish (still Streamlit)
-*Goal: full human-in-the-loop on the existing frontend.*
+## Phase 6 — Frontend: Vite + React + TypeScript SPA  ◐ IN PROGRESS
+*Goal: the production UI. Built alongside the working Streamlit dashboard; cut
+over only at parity. Frontend holds no business logic — it renders state and
+calls the `/api/v1` HTTP API. See ADR-0004.*
 
-- ☐ Review queue with confidence sort + escalation badges.
-- ☐ Approve / Edit / Rewrite / Reject / Regenerate actions.
-- ☐ Ticket + Customer conversation-history view.
-- ☐ KB upload panel with index status.
-- ☐ Mailbox connection panel.
-- ☐ Analytics page.
+This phase supersedes the old "Phase 6 — Streamlit polish" and "Phase 7 —
+Next.js" plans (collapsed into one; Streamlit `dashboard_app.py` is kept as the
+working legacy UI until cut-over, then retired). Stack: Vite + React + TS
+(strict) + Tailwind; typed API client mirroring the backend schemas; dev reaches
+the backend via Vite's proxy (no CORS in dev).
 
-## Phase 7 — Next.js frontend
-*Goal: the production UI; built alongside, cut over last.*
-
-- ☐ Scaffold Next.js + TypeScript + Tailwind.
-- ☐ Auth: login, signup, forgot/reset, protected routes, token refresh,
-  session persistence.
-- ☐ Dashboard, sidebar, review queue, KB panel, conversation history,
-  settings, analytics.
-- ☐ Cut over; retire Streamlit.
+- ◐ Chunk 1 — scaffold: Vite + React + TS + Tailwind in `frontend/`, ESLint +
+  Prettier, dev proxy to `127.0.0.1:8000`, a minimal running app verifying the
+  backend `/health`. README.
+- ☐ Chunk 2 — auth: typed API client; login + signup (mirror backend
+  validation); centralised auth store; protected routes; automatic transparent
+  access-token refresh on 401; forgot/reset password.
+- ☐ Chunk 3 — review queue: the primary surface. DRAFTED Messages
+  (`GET /tickets/queue`), lowest confidence first, confidence + escalation +
+  intent badges. Loading/empty/error states.
+- ☐ Chunk 4 — draft review: Approve / Edit / Rewrite / Reject / Regenerate /
+  Send; Ticket + Customer conversation-history view (Customer text rendered as
+  text, never HTML).
+- ☐ Chunk 5 — KB upload panel (file / URL / FAQ) with index status; mailbox
+  connection panel.
+- ☐ Chunk 6 — analytics / dashboard overview (`/dashboard`, ticket stats).
+- ☐ Chunk 7 — cut over: serve the SPA + production CORS decision; retire
+  `dashboard_app.py`.
 
 ## Cross-cutting (ongoing)
 

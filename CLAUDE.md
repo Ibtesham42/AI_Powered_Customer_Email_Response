@@ -16,7 +16,7 @@ The codebase is a working prototype being hardened into a production SaaS. The
 - `CONTEXT.md` — domain glossary. Use these exact terms (Company, User,
   Customer, Ticket, Message, Draft, Escalation).
 - `docs/adr/` — recorded architecture decisions (Postgres-not-Firestore,
-  encrypted mailbox credentials, pgvector).
+  encrypted mailbox credentials, pgvector, Vite+React frontend).
 - `SYSTEM_ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `API_DOCUMENTATION.md` —
   the target system. Where code differs, these are the destination.
 - `IMPLEMENTATION_ROADMAP.md` — the incremental, phase-by-phase plan.
@@ -127,9 +127,11 @@ both validated in `backend/services/state_machine.py`.
 
 ## Stack
 
-FastAPI + SQLAlchemy + Postgres (Neon) backend; Streamlit frontend; Groq
+FastAPI + SQLAlchemy + Postgres (Neon) backend; Groq
 (`llama-3.3-70b-versatile`) for generation; `sentence-transformers` BGE embeddings +
-pgvector for retrieval; Gmail IMAP/SMTP for email.
+pgvector for retrieval; Gmail IMAP/SMTP for email. Frontend: Vite + React + TS +
+Tailwind SPA in `frontend/` (ADR-0004), being built to replace the legacy
+Streamlit `dashboard_app.py` (kept working until cut-over).
 
 ## Important gotchas
 
