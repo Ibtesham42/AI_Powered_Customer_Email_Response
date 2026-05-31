@@ -5,6 +5,25 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 2 — auth
+- Typed API client (`src/lib/client.ts`): bearer-auth requests, **transparent
+  refresh-on-401** (single retry, deduped concurrent refreshes), and
+  `ApiError` that normalises `{detail}` / 422 `[{loc,msg}]` envelopes into a
+  human message. Token persistence in `src/lib/tokenStorage.ts` (localStorage —
+  the backend returns the refresh token in JSON, not a cookie).
+- Auth store: `AuthProvider` + `useAuth` (status `loading|authenticated|
+  unauthenticated`, `login`/`logout`); validates a stored session via
+  `GET /user/me` on load and drops to login on a hard refresh failure
+  (`UNAUTHORIZED_EVENT`).
+- Routing (react-router v6): `/login`, `/signup`, `/forgot-password`,
+  `/reset-password`, and a `ProtectedRoute`-guarded `/` dashboard placeholder.
+- Pages mirror backend validation (signup: 11 fields, email, password ≥ 8,
+  password match; signup auto-logs-in since the endpoint returns ids not
+  tokens). Reusable `TextField`/`Button`/`FormError`/`FormNotice` + `AuthCard`.
+- Types in `src/lib/types.ts` mirror the backend schemas; auth calls in
+  `src/api/auth.ts`. Verified: lint, build (strict `tsc`), and a live
+  backend+proxy smoke test (`/health` and a `/api/v1/auth/login` 422 round-trip).
+
 ### Chunk 0 — adopt Vite + React (ADR-0004)
 - Frontend strategy pivot: a Vite + React + TS + Tailwind SPA replaces both the
   planned Streamlit-polish phase and the Next.js phase. `docs/adr/0004`,

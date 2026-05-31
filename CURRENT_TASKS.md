@@ -1,9 +1,19 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 1 done** (Vite + React scaffold) on
+Active checkpoint: **Phase 6 chunk 2 done** (auth) on
 `feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ✅ Phase 6 Chunk 2 — done (auth)
+
+- Typed API client with transparent refresh-on-401 + `ApiError` envelope
+  parsing; localStorage token storage; auth store (`AuthProvider`/`useAuth`).
+- react-router v6 routes: login/signup/forgot/reset + `ProtectedRoute` dashboard.
+- Pages mirror backend validation; signup auto-logs-in. Reusable UI components.
+- Verified: lint, strict build, and a live backend+proxy smoke test
+  (`/health` + `/api/v1/auth/login` 422 round-trip). Real login/signup needs DB
+  connectivity (Neon DNS was down in the sandbox) — contract/wiring proven.
 
 ## ✅ Phase 6 Chunk 1 — done (Vite + React scaffold)
 
@@ -17,7 +27,7 @@ History: `CHANGELOG.md`.
 
 0. ☑ Adopt Vite + React (ADR-0004; supersedes Streamlit-polish + Next.js).
 1. ☑ Scaffold (Vite + TS + Tailwind, dev proxy, /health check).
-2. ☐ Auth: typed API client, login/signup (mirror backend validation), auth
+2. ☑ Auth: typed API client, login/signup (mirror backend validation), auth
    store, protected routes, transparent token refresh on 401, forgot/reset.
 3. ☐ Review queue (primary surface): `GET /tickets/queue`, confidence sort +
    escalation/intent badges; loading/empty/error states.
@@ -28,8 +38,9 @@ History: `CHANGELOG.md`.
 7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Commit chunk 1 (done in this session if not already).
-2. Start Phase 6 chunk 2 — auth (typed API client + login/signup + auth store).
+1. Start Phase 6 chunk 3 — review queue (the primary working surface):
+   `GET /api/v1/tickets/queue`, confidence sort, escalation/intent badges,
+   loading/empty/error states. Add an app shell/layout + nav.
 
 ## Done so far
 Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model
