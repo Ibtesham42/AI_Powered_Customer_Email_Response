@@ -232,3 +232,7 @@ vector_store/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Frontend (Vite + React SPA). The Python "lib/" rule above otherwise swallows
+# the SPA's src/lib (API client, types, token storage) — keep it tracked.
+!frontend/src/lib/
