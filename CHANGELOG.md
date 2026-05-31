@@ -5,6 +5,13 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 6 — analytics / overview
+- `OverviewPage` (`/overview`): `GET /dashboard/stats` rendered as stat cards —
+  awaiting-review depth (links to the queue), escalated count, total, and the
+  open/pending/resolved/closed breakdown. Loading/error states + refresh.
+- `api/dashboard.ts` + `DashboardStats` type; nav item added to `AppLayout`.
+- Verified: lint, strict build, proxy auth-gating on `/dashboard/stats`.
+
 ### Chunk 5 — knowledge base + mailbox panels
 - `KnowledgeBasePage` (`/knowledge-base`): lists `GET /data/documents` with
   per-document status badges (pending/processing/indexed/error + error text),

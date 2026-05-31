@@ -26,8 +26,9 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   at `/`, a **ticket detail / draft-review** view at `/tickets/:id`
   (regenerate/approve/edit/reject/send), a **knowledge base** panel
   (`/knowledge-base`: list + owner-only File/URL/FAQ upload) and a **mailbox**
-  panel (`/mailbox`: details + owner-only connect). Analytics + the cut-over
-  are the remaining chunks.
+  panel (`/mailbox`: details + owner-only connect), and an **overview**
+  (`/overview`: ticket stats). The cut-over (serve SPA + prod CORS, retire
+  Streamlit) is the remaining chunk.
 - **`scripts/email_worker.py`** — background IMAP poll + AI queue worker.
 
 ## Completed modules

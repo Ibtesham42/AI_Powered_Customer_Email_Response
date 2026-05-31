@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth'
 
 const NAV = [
   { to: '/', label: 'Review queue', end: true },
+  { to: '/overview', label: 'Overview', end: false },
   { to: '/knowledge-base', label: 'Knowledge base', end: false },
   { to: '/mailbox', label: 'Mailbox', end: false },
 ]

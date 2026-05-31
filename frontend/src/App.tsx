@@ -7,6 +7,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import LoginPage from './pages/LoginPage'
 import MailboxPage from './pages/MailboxPage'
+import OverviewPage from './pages/OverviewPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ReviewQueuePage from './pages/ReviewQueuePage'
 import SignupPage from './pages/SignupPage'
@@ -24,6 +25,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<ReviewQueuePage />} />
+              <Route path="/overview" element={<OverviewPage />} />
               <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/mailbox" element={<MailboxPage />} />

@@ -1,9 +1,16 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 5 done** (KB + mailbox panels) on
+Active checkpoint: **Phase 6 chunk 6 done** (analytics overview) on
 `feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ✅ Phase 6 Chunk 6 — done (analytics overview)
+
+- `OverviewPage` (`/overview`): `GET /dashboard/stats` as stat cards
+  (awaiting-review depth → links to queue, escalated, total, status breakdown);
+  loading/error + refresh. `api/dashboard.ts` + `DashboardStats`; nav item.
+- Verified: lint, strict build, proxy auth-gating on `/dashboard/stats`.
 
 ## ✅ Phase 6 Chunk 5 — done (KB + mailbox panels)
 
@@ -66,13 +73,17 @@ History: `CHANGELOG.md`.
 4. ☑ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
    history (Customer text rendered as text, never HTML).
 5. ☑ KB upload panel (file/URL/FAQ) + mailbox connection panel.
-6. ☐ Analytics / dashboard overview (`/dashboard`).
+6. ☑ Analytics / dashboard overview (`/overview` → `/dashboard/stats`).
 7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Start Phase 6 chunk 6 — analytics / dashboard overview. Check the
-   `/api/v1/dashboard` route (and `ticket_service.company_stats`) for the
-   stats shape, then add an overview page with the counts.
+1. Start Phase 6 chunk 7 — cut over: a production build/serve story + CORS
+   decision for the SPA, then retire the legacy Streamlit `dashboard_app.py`
+   (and the standalone Streamlit apps). This is the last Phase 6 chunk; it
+   needs a real end-to-end test against a live DB before retiring Streamlit.
+2. Consider a manual end-to-end pass of the SPA against a running backend + DB
+   (login → queue → review → send) once DB connectivity is available — the
+   sandbox had Neon DNS down, so flows were verified by contract/proxy only.
 
 ## Done so far
 Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model
