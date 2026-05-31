@@ -12,13 +12,18 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.llm.llm_client import get_llm_client
-from app.llm.prompt_builder import build_structured_prompt
+from app.llm.prompt_builder import build_structured_prompt, build_summary_prompt
 from backend.models.enums import Intent, MessageDirection
 from backend.models.kb_chunk import KbChunk
 from backend.models.message import Message
-from backend.services import rag_service
+from backend.models.ticket import Ticket
+from backend.services import rag_service, ticket_service
 
 logger = logging.getLogger(__name__)
+
+# Past-Ticket summaries injected as memory are capped to this many characters so
+# a Customer with a long history can't blow the prompt's token budget.
+PAST_SUMMARY_CHAR_BUDGET = 1500
 
 # Phrases that signal the model could not answer from context — a reply built
 # on one of these must not score as confident, however good the retrieval was.
@@ -93,6 +98,56 @@ def get_ticket_history(
     return "\n".join(lines)
 
 
+def _past_ticket_memory(
+    db: Session, company_id: int, customer_id: int, exclude_ticket_id: int
+) -> str:
+    """Bulleted past-Ticket summaries for this Customer, within the char budget."""
+    summaries = ticket_service.list_resolved_ticket_summaries(
+        db, company_id, customer_id, exclude_ticket_id
+    )
+    lines: list[str] = []
+    used = 0
+    for summary in summaries:
+        line = f"- {summary.strip()}"
+        if used + len(line) + 1 > PAST_SUMMARY_CHAR_BUDGET:
+            break
+        lines.append(line)
+        used += len(line) + 1
+    return "\n".join(lines)
+
+
+def build_memory(db: Session, message: Message) -> str:
+    """The model's working memory for an inbound Message: this Customer's
+    past-Ticket summaries (budgeted) + this Ticket's conversation so far + the
+    current email. Sections with no content are omitted.
+    """
+    ticket = ticket_service.get_ticket(db, message.company_id, message.ticket_id)
+    history = get_ticket_history(db, message.ticket_id, before_message_id=message.id)
+
+    sections: list[str] = []
+    if ticket is not None:
+        past = _past_ticket_memory(
+            db, message.company_id, ticket.customer_id, ticket.id
+        )
+        if past:
+            sections.append("Past tickets from this customer (summaries):\n" + past)
+    if history:
+        sections.append("Earlier in this conversation:\n" + history)
+    sections.append("Current customer email:\n" + (message.body or ""))
+    return "\n\n".join(sections)
+
+
+def summarize_ticket(db: Session, ticket: Ticket) -> str:
+    """One-line internal summary of a Ticket's full conversation, for Memory on
+    the Customer's future Tickets. Returns "" when there is nothing to summarise.
+    """
+    conversation = get_ticket_history(db, ticket.id)
+    if not conversation.strip():
+        return ""
+    summary = get_llm_client().generate(build_summary_prompt(conversation))
+    return summary.strip()
+
+
 def generate_draft(db: Session, message: Message) -> dict:
     """Generate an AI draft reply for an inbound Message.
 
@@ -103,12 +158,7 @@ def generate_draft(db: Session, message: Message) -> dict:
     """
     chunks = rag_service.retrieve(db, message.body, message.company_id)
     context = "\n".join(chunk.content for chunk, _distance in chunks)
-    history = get_ticket_history(db, message.ticket_id, before_message_id=message.id)
-
-    full_input = (
-        f"Previous conversation:\n{history}\n\n"
-        f"Current customer email:\n{message.body}"
-    )
+    full_input = build_memory(db, message)
     allowed_intents = [i.value for i in Intent]
     prompt = build_structured_prompt(full_input, [context], allowed_intents)
     raw = get_llm_client().generate_structured(prompt)

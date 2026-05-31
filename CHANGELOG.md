@@ -5,6 +5,23 @@ each entry references its git commit.
 
 ## Phase 5 — AI pipeline (in progress) · branch `feature/phase-5-ai-pipeline`
 
+### Chunk 3 — memory injection + Ticket summaries
+- Memory injection: `ai_service.build_memory` assembles the prompt input from
+  this Customer's past-Ticket summaries (budgeted to
+  `PAST_SUMMARY_CHAR_BUDGET = 1500` chars) + the current Ticket's conversation
+  so far + the current email. Empty sections are omitted.
+- `ticket_service.list_resolved_ticket_summaries` — tenant-scoped query for a
+  Customer's past summarised Tickets (newest first, capped), excluding the
+  current one.
+- Ticket summarisation: `ai_service.summarize_ticket` turns a Ticket's full
+  thread into a 1-3 sentence internal summary (`build_summary_prompt`, which
+  excludes greetings/sign-offs and sensitive data).
+- `ticket_service.transition_ticket` generates that summary on the move to
+  RESOLVED/CLOSED (once — never overwrites). The LLM call is best-effort:
+  failures are logged and swallowed so a status transition never breaks.
+- No migration: the `tickets.summary` column already exists (migration
+  `76870d572c26`).
+
 ### Chunk 2 — structured generation call
 - `app/llm/prompt_builder.build_structured_prompt` — one prompt that carries
   the hallucination-reduction rules and asks for a single JSON object

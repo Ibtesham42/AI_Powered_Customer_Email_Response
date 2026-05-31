@@ -6,7 +6,7 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 5 in progress (chunks 1–2 done) on
+**Current checkpoint:** Phase 5 in progress (chunks 1–3 done) on
 `feature/phase-5-ai-pipeline`; Phases 0–4 are merged to `main`. See
 `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
@@ -120,8 +120,12 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ Move `GROQ` model name + params into config — chunk 1: `MODEL_NAME`,
   `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_TIMEOUT` in `app/utils/config.py`;
   `LLMClient` reads them + `get_llm_client()` process singleton.
-- ☐ Memory injection: current Ticket verbatim + past-Ticket summaries.
-- ☐ Generate a Ticket `summary` on resolve/close.
+- ☑ Memory injection: current Ticket verbatim + past-Ticket summaries —
+  chunk 3: `ai_service.build_memory` (past summaries budgeted to 1500 chars +
+  current thread + current email).
+- ☑ Generate a Ticket `summary` on resolve/close — chunk 3:
+  `transition_ticket` calls `ai_service.summarize_ticket` on RESOLVED/CLOSED
+  (best-effort, once). The `tickets.summary` column already existed.
 - ☑ Hallucination-reduction prompt: answer only from context, otherwise
   defer to a human — chunk 2, folded into `build_structured_prompt` (grounding
   rules + the `needs_human` defer signal).

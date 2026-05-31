@@ -1,8 +1,22 @@
 # Current Tasks
 
-Active checkpoint: **Phase 5 chunk 2 done** on `feature/phase-5-ai-pipeline`.
+Active checkpoint: **Phase 5 chunk 3 done** on `feature/phase-5-ai-pipeline`.
 Phases 0–4 are merged to `main`. Context: `PROJECT_STATE.md` ·
 Plan: `IMPLEMENTATION_ROADMAP.md`.
+
+## ✅ Phase 5 Chunk 3 — done (memory injection + Ticket summaries)
+
+- `ai_service.build_memory` — prompt input = past-Ticket summaries (budgeted to
+  1500 chars) + current Ticket conversation + current email.
+- `ticket_service.list_resolved_ticket_summaries` — tenant-scoped past-summary
+  query (newest first, capped, excludes the current Ticket).
+- `ai_service.summarize_ticket` + `build_summary_prompt` — 1-3 sentence internal
+  summary, no greetings/sign-offs/sensitive data.
+- `transition_ticket` generates the summary on RESOLVED/CLOSED (once,
+  best-effort; LLM failure never breaks the transition).
+- No migration — `tickets.summary` already exists.
+- Verified: memory/budget/summary unit tests, transition-hook gating + error
+  tests, and a live Groq summary smoke test.
 
 ## ✅ Phase 5 Chunk 2 — done (structured generation call)
 
@@ -16,7 +30,6 @@ Plan: `IMPLEMENTATION_ROADMAP.md`.
   (0.3), halved on non-answer phrases.
 - `intent` persisted via worker + `/messages/{id}/regenerate`. `needs_human`
   logged now; chunk 4's escalation engine consumes it.
-- Verified: helper unit tests + a live Groq JSON-mode smoke test.
 
 See `CHANGELOG.md` for commit-level detail.
 
@@ -26,14 +39,14 @@ See `CHANGELOG.md` for commit-level detail.
 2. ☑ Structured Groq call → `{intent, confidence, needs_human, draft}` (JSON,
    validation + fallback) + hallucination-reduction prompt; confidence blends
    retrieval similarity + LLM self-rating.
-3. ☐ Memory injection: current Ticket verbatim + past-Ticket summaries within a
+3. ☑ Memory injection: current Ticket verbatim + past-Ticket summaries within a
    token budget; generate a Ticket `summary` on resolve/close.
 4. ☐ Escalation engine: low confidence, human request, complaint, repeated
    replies, manual reject (consumes `needs_human`).
 
 ## Immediate next steps for the next session
-1. Commit chunk 2 on `feature/phase-5-ai-pipeline`.
-2. Start Phase 5 chunk 3 (memory injection + Ticket summaries).
+1. Commit chunk 3 on `feature/phase-5-ai-pipeline`.
+2. Start Phase 5 chunk 4 (escalation engine) — the last Phase 5 chunk.
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see

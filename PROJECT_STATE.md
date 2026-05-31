@@ -1,7 +1,7 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 5 chunk 2**
-(Phases 0–4 merged to `main`; chunks 1–2 on `feature/phase-5-ai-pipeline`).
+Snapshot of the AI Customer Support SaaS as of **Phase 5 chunk 3**
+(Phases 0–4 merged to `main`; chunks 1–3 on `feature/phase-5-ai-pipeline`).
 Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
@@ -55,6 +55,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   to a safe defer-to-human result. Confidence blends retrieval similarity
   (primary) with the LLM self-rating (secondary). `intent` is persisted on the
   Message; `needs_human` is logged and awaits the chunk-4 escalation engine.
+- **Memory + summaries** — `ai_service.build_memory` feeds the prompt this
+  Customer's past-Ticket summaries (budgeted) + the current Ticket's thread +
+  the current email. `transition_ticket` generates a 1-3 sentence
+  `tickets.summary` on RESOLVED/CLOSED (best-effort; failure never breaks the
+  transition), which becomes memory on the Customer's future Tickets.
 - **Knowledge base** — `kb_documents` / `kb_chunks` on pgvector, per-Company.
   Ingestion is in-process (extract → chunk → embed → store) from file uploads
   (`/data/upload`), URLs (`/data/url`) and FAQ entries (`/data/faq`).

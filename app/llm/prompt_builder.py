@@ -371,6 +371,28 @@ STYLE RULES
     return prompt
 
 
+def build_summary_prompt(conversation):
+    """Prompt for a short internal Ticket summary (Phase 5 memory).
+
+    Produces 1-3 plain sentences capturing the issue and its resolution, used as
+    memory on the Customer's future Tickets — not shown to the Customer.
+    """
+    prompt = f"""
+Summarize the following customer support conversation in 1-3 short sentences,
+for internal memory only (it is NOT sent to the customer).
+
+Capture: the customer's core issue and how it was handled/resolved.
+Exclude: greetings, sign-offs, pleasantries, and any sensitive data such as
+passwords, credentials, links, or internal IDs.
+Write plain text only — no preamble, no labels, no markdown.
+
+CONVERSATION:
+{conversation}
+"""
+
+    return prompt
+
+
 def build_structured_prompt(customer_email, retrieved_context, allowed_intents):
     """Prompt for the single structured generation call (Phase 5).
 

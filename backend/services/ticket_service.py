@@ -8,6 +8,7 @@ the state machine.
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from backend.logging_config import get_logger
 from backend.models.customer import Customer
 from backend.models.enums import MessageDirection, ReviewStatus, TicketStatus
 from backend.models.message import Message
@@ -16,6 +17,8 @@ from backend.services.state_machine import (
     assert_review_transition,
     assert_ticket_transition,
 )
+
+logger = get_logger(__name__)
 
 
 # ---------------- Customers ----------------
@@ -36,9 +39,7 @@ def get_or_create_customer(
     return customer
 
 
-def get_customer(
-    db: Session, company_id: int, customer_id: int
-) -> Customer | None:
+def get_customer(db: Session, company_id: int, customer_id: int) -> Customer | None:
     return (
         db.query(Customer)
         .filter(Customer.id == customer_id, Customer.company_id == company_id)
@@ -102,9 +103,7 @@ def find_or_open_ticket(
                 if ticket.status != TicketStatus.OPEN:
                     transition_ticket(db, ticket, TicketStatus.OPEN)
                 return ticket
-    return open_ticket(
-        db, company_id, customer_id, subject, thread_id=message_id
-    )
+    return open_ticket(db, company_id, customer_id, subject, thread_id=message_id)
 
 
 def get_ticket(db: Session, company_id: int, ticket_id: int) -> Ticket | None:
@@ -124,6 +123,29 @@ def list_tickets(
     return query.order_by(Ticket.id.desc()).all()
 
 
+def list_resolved_ticket_summaries(
+    db: Session,
+    company_id: int,
+    customer_id: int,
+    exclude_ticket_id: int | None = None,
+    limit: int = 10,
+) -> list[str]:
+    """A Customer's past Ticket summaries (newest first) for Memory injection.
+
+    Tenant-scoped; only Tickets that already carry a summary, excluding the
+    current one. Capped by ``limit``; the caller still trims to a char budget.
+    """
+    query = db.query(Ticket.summary).filter(
+        Ticket.company_id == company_id,
+        Ticket.customer_id == customer_id,
+        Ticket.summary.isnot(None),
+    )
+    if exclude_ticket_id is not None:
+        query = query.filter(Ticket.id != exclude_ticket_id)
+    rows = query.order_by(Ticket.id.desc()).limit(limit).all()
+    return [summary for (summary,) in rows if summary and summary.strip()]
+
+
 def transition_ticket(db: Session, ticket: Ticket, new_status: str) -> Ticket:
     assert_ticket_transition(ticket.status, new_status)
     ticket.status = new_status
@@ -133,7 +155,33 @@ def transition_ticket(db: Session, ticket: Ticket, new_status: str) -> Ticket:
         ticket.closed_at = func.now()
     db.commit()
     db.refresh(ticket)
+
+    # A resolved/closed Ticket gets a one-line summary that feeds Memory on the
+    # Customer's future Tickets. Generated once (don't overwrite on re-resolve).
+    if (
+        new_status in (TicketStatus.RESOLVED, TicketStatus.CLOSED)
+        and not ticket.summary
+    ):
+        _summarize_on_close(db, ticket)
     return ticket
+
+
+def _summarize_on_close(db: Session, ticket: Ticket) -> None:
+    """Best-effort Ticket summarisation. A failed/slow LLM call must never break
+    the status transition, so this swallows errors after logging them."""
+    # Lazy import: ai_service pulls in the LLM stack, and importing it at module
+    # load would couple this widely-imported service to it (and risk a cycle).
+    from backend.services import ai_service
+
+    try:
+        summary = ai_service.summarize_ticket(db, ticket)
+        if summary:
+            ticket.summary = summary
+            db.commit()
+            db.refresh(ticket)
+    except Exception:
+        logger.exception("Summarising ticket %s failed", ticket.id)
+        db.rollback()
 
 
 def escalate_ticket(db: Session, ticket: Ticket, reason: str) -> Ticket:
@@ -218,9 +266,7 @@ def get_message(db: Session, company_id: int, message_id: int) -> Message | None
     )
 
 
-def list_ticket_messages(
-    db: Session, company_id: int, ticket_id: int
-) -> list[Message]:
+def list_ticket_messages(db: Session, company_id: int, ticket_id: int) -> list[Message]:
     return (
         db.query(Message)
         .filter(Message.company_id == company_id, Message.ticket_id == ticket_id)
@@ -250,18 +296,14 @@ def company_stats(db: Session, company_id: int) -> dict:
     tickets = db.query(Ticket).filter(Ticket.company_id == company_id)
     return {
         "tickets_total": tickets.count(),
-        "tickets_open": tickets.filter(
-            Ticket.status == TicketStatus.OPEN
-        ).count(),
+        "tickets_open": tickets.filter(Ticket.status == TicketStatus.OPEN).count(),
         "tickets_pending": tickets.filter(
             Ticket.status == TicketStatus.PENDING
         ).count(),
         "tickets_resolved": tickets.filter(
             Ticket.status == TicketStatus.RESOLVED
         ).count(),
-        "tickets_closed": tickets.filter(
-            Ticket.status == TicketStatus.CLOSED
-        ).count(),
+        "tickets_closed": tickets.filter(Ticket.status == TicketStatus.CLOSED).count(),
         "tickets_escalated": tickets.filter(Ticket.escalated.is_(True)).count(),
         "review_queue": len(list_review_queue(db, company_id)),
     }
