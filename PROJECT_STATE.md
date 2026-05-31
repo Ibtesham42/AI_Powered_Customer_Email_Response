@@ -125,22 +125,28 @@ managed Postgres.
 - Access token kept long (480 min) so the legacy Streamlit dashboard works
   without silent refresh; lower it when the Next.js frontend ships.
 
+## Testing
+
+- `pytest` suite in `tests/` (Phase 7 chunk 1): runs against in-memory SQLite,
+  drives routes over `httpx.ASGITransport`. **35 tests** — state machine,
+  escalation, AI confidence/parse, auth flow, tenant isolation. Run: `pytest`.
+- The SQLite schema excludes `kb_chunks` (pgvector) and `audit_logs` (JSONB);
+  RAG-scoping + audit assertions need the Postgres-backed CI run (chunk 6).
+
 ## Active technical debt
 
 - Alembic autogenerate flags redundant `ix_<table>_id` indexes on
   `audit_logs`, `customers`, `messages` and `tickets` — those models declare
   `index=True` on the PK column but the DB never got the index. Harmless
   noise; fix by dropping `index=True` from the PK columns.
-- `TestClient` is broken (see Known bugs).
 - ~4 pre-existing ruff warnings in not-yet-touched files.
 - `venv/` is committed to the repo (pre-existing).
 
 ## Known bugs / gotchas
 
-- **`TestClient` unusable** — httpx 0.28 dropped the `app=` kwarg this
-  FastAPI/starlette version needs. Test via direct route-function calls with a
-  hand-built `starlette.requests.Request`. Fix later: pin httpx `<0.28` or
-  upgrade FastAPI/starlette.
+- **`TestClient` (`fastapi.testclient`) is unusable** with httpx 0.28 (it drops
+  the `app=` kwarg). Resolved for the suite by driving routes over
+  `httpx.ASGITransport` (see `tests/conftest.py`); don't reach for `TestClient`.
 - SQLAlchemy does **not** topologically order ORM deletes without
   `relationship()` declared — delete children before parents explicitly.
 - `.env` holds secrets (`SECRET_KEY`, `DATABASE_URL`, API keys) — git-ignored;

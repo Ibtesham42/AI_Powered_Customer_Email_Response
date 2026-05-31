@@ -26,3 +26,10 @@ ignore_missing_imports = true
 warn_unused_ignores = false
 warn_return_any = false
 exclude = ["venv", "alembic", "notebook"]
+
+[tool.pytest.ini_options]
+# Async tests use httpx.ASGITransport (TestClient is incompatible with httpx
+# 0.28). asyncio_mode=auto runs `async def test_*` without per-test markers.
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"

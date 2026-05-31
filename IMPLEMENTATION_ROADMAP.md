@@ -6,11 +6,11 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phases 0–5 plus Phase 6 chunks 0–7-prep are merged to
-`main`. The Vite + React frontend (ADR-0004, supersedes the old
-Streamlit-polish + Next.js plans) is at feature parity; only the cut-over
-(retire Streamlit after a live E2E test) remains. See `CURRENT_TASKS.md` and
-`PROJECT_STATE.md`.
+**Current checkpoint:** Phases 0–6 (chunks 0–7-prep) merged to `main`. Now on
+**Phase 7 — production hardening** (`feature/phase-7-hardening`): closing the
+Critical + High blockers from the production-readiness audit. Phase 6 cut-over
+(retire Streamlit) and the audit's Medium/Low items remain deferred. See
+`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -167,14 +167,37 @@ the backend via Vite's proxy (no CORS in dev).
   `frontend/README.md`. Retiring `dashboard_app.py` is deferred to a live
   end-to-end test (login → queue → review → send) against a real DB.
 
-## Cross-cutting (ongoing)
+## Phase 7 — Production hardening  ◐ IN PROGRESS
+*Goal: close the Critical + High blockers from the production-readiness audit so
+a real company can run this. Ordered by risk-reduction ÷ effort. Medium/Low
+audit items are deliberately out of scope for now.*
 
-- ☐ Docker Compose: `api`, `worker`, `postgres`. Production: Cloud Run +
-  Cloud SQL.
-- ☐ Tests: introduce `pytest`; cover auth, tenancy isolation, the state
-  machines, RAG scoping.
-- ☐ CI: lint + type-check + tests on push.
-- ☐ Monitoring: health/readiness probes, error tracking.
+- ☑ Chunk 1 (C1) — test harness + tenancy/auth/state-machine safety net. Fixed
+  the broken `TestClient` (httpx 0.28 → `ASGITransport`). `pytest` +
+  `pytest-asyncio`; auth + tenant-isolation tests on SQLite (`kb_chunks` +
+  `audit_logs` excluded); **35 tests green**. RAG-scoping + audit assertions
+  deferred to the Postgres CI run (chunk 6). *(High)*
+- ☐ Chunk 2 (H4) — SSRF guard on URL KB ingestion: reject loopback / private /
+  link-local / metadata IPs + non-http(s) schemes. *(Low)*
+- ☐ Chunk 3 (H3) — mailbox encryption key fail-fast + rotation/backup runbook.
+  *(Low)*
+- ☐ Chunk 4 (H2) — short access-token TTL + real revocation via a per-user
+  `token_version` claim (logout-all / reset bumps it). *(Medium)*
+- ☐ Chunk 5 (H1) — token transport hardening: refresh token → httpOnly+Secure+
+  SameSite cookie (off localStorage), access token in memory, security headers,
+  HTTPS-in-prod. Backend + SPA. *(High)*
+- ☐ Chunk 6 (C2) — deployment & runtime hardening: Dockerfiles + compose
+  (api/worker/postgres), worker auto-restart, Redis-backed rate limiting,
+  DB-checking readiness probe, CI (lint + types + pytest w/ Postgres+pgvector).
+  *(High)*
+
+## Cross-cutting (folded into Phase 7 above)
+
+- ◐ Docker Compose / worker resilience / Redis rate-limit / readiness → Phase 7
+  chunk 6. Production target: Cloud Run + Cloud SQL.
+- ◐ Tests (auth, tenancy, state machines, RAG scoping) → Phase 7 chunk 1.
+- ◐ CI (lint + type-check + tests) → Phase 7 chunk 6.
+- ☐ Monitoring: error tracking (Sentry-style) — not yet scheduled.
 
 ## Reference
 

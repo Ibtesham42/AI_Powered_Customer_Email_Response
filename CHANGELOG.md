@@ -3,7 +3,27 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
+## Phase 7 — Production hardening (in progress) · branch `feature/phase-7-hardening`
+
+Closing the Critical + High blockers from the production-readiness audit.
+
+### Chunk 1 (C1) — test harness + tenancy/auth safety net
+- `pytest` + `pytest-asyncio` added (`requirements-dev.txt`, `pyproject.toml`
+  `[tool.pytest.ini_options]` with `asyncio_mode=auto`). Fixes the broken
+  `TestClient` (httpx 0.28) by driving routes over `httpx.ASGITransport`.
+- `tests/conftest.py`: in-memory SQLite DB via `StaticPool`, `get_db` override,
+  async client fixture; excludes the Postgres-only `kb_chunks` (pgvector) and
+  `audit_logs` (JSONB) tables; disables the in-memory rate limiter for tests.
+- **35 tests, all passing:** state machine (transitions, valid + invalid),
+  escalation engine (rule priority/threshold/idempotency), AI confidence blend +
+  intent/confidence coercion + structured-output parse paths (valid/malformed/
+  empty), auth flow (signup/login/me/refresh-rotation/logout), and **tenant
+  isolation** (Company B gets 404/empty on A's ticket, queue, message action,
+  mailbox, and KB documents).
+- Out of scope here (need a Postgres+pgvector DB → CI in chunk 6): RAG retrieval
+  scoping and audit-log assertions.
+
+## Phase 6 — Frontend: Vite + React SPA (done) · merged to `main`
 
 ### Chunk 7 (prep) — production CORS + API base URL
 - Backend: configurable `CORS_ORIGINS` (`backend/config.py`) + `CORSMiddleware`
