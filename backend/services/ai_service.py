@@ -6,7 +6,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.llm.llm_client import LLMClient
+from app.llm.llm_client import get_llm_client
 from app.llm.prompt_builder import build_email_prompt
 from backend.models.enums import MessageDirection
 from backend.models.kb_chunk import KbChunk
@@ -16,9 +16,7 @@ from backend.services import rag_service
 logger = logging.getLogger(__name__)
 
 
-def calculate_confidence(
-    chunks: list[tuple[KbChunk, float]], response: str
-) -> int:
+def calculate_confidence(chunks: list[tuple[KbChunk, float]], response: str) -> int:
     """Confidence 0-100, grounded in retrieval similarity.
 
     The dominant signal is how closely the knowledge base matched the query —
@@ -48,9 +46,7 @@ def get_ticket_history(
 
     lines = []
     for m in query.order_by(Message.id.asc()).all():
-        speaker = (
-            "Customer" if m.direction == MessageDirection.INBOUND else "Support"
-        )
+        speaker = "Customer" if m.direction == MessageDirection.INBOUND else "Support"
         lines.append(f"{speaker}: {m.body}")
     return "\n".join(lines)
 
@@ -63,16 +59,14 @@ def generate_draft(db: Session, message: Message) -> dict:
     """
     chunks = rag_service.retrieve(db, message.body, message.company_id)
     context = "\n".join(chunk.content for chunk, _distance in chunks)
-    history = get_ticket_history(
-        db, message.ticket_id, before_message_id=message.id
-    )
+    history = get_ticket_history(db, message.ticket_id, before_message_id=message.id)
 
     full_input = (
         f"Previous conversation:\n{history}\n\n"
         f"Current customer email:\n{message.body}"
     )
     prompt = build_email_prompt(full_input, [context])
-    response = LLMClient().generate(prompt)
+    response = get_llm_client().generate(prompt)
     confidence = calculate_confidence(chunks, response)
 
     logger.info(

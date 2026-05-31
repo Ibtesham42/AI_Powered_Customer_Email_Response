@@ -3,7 +3,20 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 4 — RAG hardening (in progress) · branch `feature/phase-4-rag`
+## Phase 5 — AI pipeline (in progress) · branch `feature/phase-5-ai-pipeline`
+
+### Chunk 1 — LLM config + client hardening
+- Groq model name and generation params moved out of the hardcoded
+  `app/llm/llm_client.py` into `app/utils/config.py` (`Config.MODEL_NAME`,
+  `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_TIMEOUT`), all env-overridable.
+- `LLMClient` reads those params and applies a request `timeout` to the Groq
+  client so a stalled call fails instead of hanging the worker.
+- Added `get_llm_client()` — a process-level singleton. `ai_service.generate_draft`
+  now calls it instead of constructing a fresh `LLMClient()` (and Groq
+  connection pool) per email. No change to draft content.
+- `.env.example` documents the new optional tuning vars.
+
+## Phase 4 — RAG hardening (done) · merged to `main`
 
 ### Chunk 4 — multi-format ingestion + grounded confidence (completes Phase 4)
 - URL ingestion — `POST /api/v1/data/url` fetches a web page

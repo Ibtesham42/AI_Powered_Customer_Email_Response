@@ -6,9 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 4 complete (chunks 1–4) on `feature/phase-4-rag`;
-Phases 0–3 are merged to `main`. Next: merge to `main` (on the user's OK),
-then Phase 5 — AI pipeline. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** Phase 5 in progress (chunk 1 done) on
+`feature/phase-5-ai-pipeline`; Phases 0–4 are merged to `main`. See
+`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -110,11 +110,13 @@ then Phase 5 — AI pipeline. See `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
   cosine similarity. (The LLM self-rating component is delivered by Phase 5's
   structured generation call.)
 
-## Phase 5 — AI pipeline
+## Phase 5 — AI pipeline  ◐ IN PROGRESS
 *Goal: structured, memory-aware, escalation-driven generation.*
 
 - ☐ One structured Groq call → `{ intent, confidence, draft, needs_human }`.
-- ☐ Move `GROQ` model name + params into config.
+- ☑ Move `GROQ` model name + params into config — chunk 1: `MODEL_NAME`,
+  `LLM_TEMPERATURE`, `LLM_MAX_TOKENS`, `LLM_TIMEOUT` in `app/utils/config.py`;
+  `LLMClient` reads them + `get_llm_client()` process singleton.
 - ☐ Memory injection: current Ticket verbatim + past-Ticket summaries.
 - ☐ Generate a Ticket `summary` on resolve/close.
 - ☐ Hallucination-reduction prompt: answer only from context, otherwise

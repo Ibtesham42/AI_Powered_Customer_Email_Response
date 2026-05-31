@@ -135,8 +135,10 @@ pgvector for retrieval; Gmail IMAP/SMTP for email.
   backend.
 - **Env var name drift.** `app/utils/config.py` reads `EMAIL_USER` / `EMAIL_PASS` and
   `GROQ_API_KEY`; the README mentions `EMAIL_PASSWORD`. Match `config.py`, not the README.
-- The active model name lives in `app/llm/llm_client.py` (hardcoded), not in
-  `Config.MODEL_NAME` (which is unused).
+- The Groq model name and generation params (`MODEL_NAME`, `LLM_TEMPERATURE`,
+  `LLM_MAX_TOKENS`, `LLM_TIMEOUT`) live in `app/utils/config.py` (`Config`) and
+  are env-overridable. `LLMClient` reads them; construct it once per process via
+  `app.llm.llm_client.get_llm_client()` — never `LLMClient()` in the hot path.
 - `venv/` is committed to the repo; never edit or scan files under it.
 
 ## Project notes
