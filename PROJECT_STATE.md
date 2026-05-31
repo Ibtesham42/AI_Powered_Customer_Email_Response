@@ -1,8 +1,9 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 6 chunk 1**
-(Phases 0–5 merged to `main`; the React frontend scaffold is on
-`feature/phase-6-frontend`). Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phase 6 chunks 0–7-prep**
+(merged to `main`). The Vite + React SPA has feature parity (auth, queue, draft
+review, KB, mailbox, overview); the only thing left is the cut-over — retiring
+Streamlit after a live end-to-end test. Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 

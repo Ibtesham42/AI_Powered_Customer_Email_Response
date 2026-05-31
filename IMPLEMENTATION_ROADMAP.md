@@ -6,9 +6,10 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phases 0–5 merged to `main`. Phase 6 — the Vite + React
-frontend (ADR-0004, supersedes the old Streamlit-polish + Next.js plans) — in
-progress on `feature/phase-6-frontend`. See `CURRENT_TASKS.md` and
+**Current checkpoint:** Phases 0–5 plus Phase 6 chunks 0–7-prep are merged to
+`main`. The Vite + React frontend (ADR-0004, supersedes the old
+Streamlit-polish + Next.js plans) is at feature parity; only the cut-over
+(retire Streamlit after a live E2E test) remains. See `CURRENT_TASKS.md` and
 `PROJECT_STATE.md`.
 
 ---

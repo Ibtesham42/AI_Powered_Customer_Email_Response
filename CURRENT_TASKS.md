@@ -1,9 +1,9 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 7 prep done** (prod CORS + API base URL);
-Streamlit retirement deferred. Merging chunks 0–7-prep to `main`.
-Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
-History: `CHANGELOG.md`.
+Active checkpoint: **Phase 6 chunks 0–7-prep merged to `main`** (Vite + React
+SPA at feature parity). Only the cut-over remains: a live end-to-end test, then
+retire Streamlit. Context: `PROJECT_STATE.md` · Plan:
+`IMPLEMENTATION_ROADMAP.md` · ADR-0004 · History: `CHANGELOG.md`.
 
 ## ◐ Phase 6 Chunk 7 — prep done; cut-over pending
 
