@@ -1,9 +1,18 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 6 done** (analytics overview) on
-`feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
+Active checkpoint: **Phase 6 chunk 7 prep done** (prod CORS + API base URL);
+Streamlit retirement deferred. Merging chunks 0–7-prep to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ◐ Phase 6 Chunk 7 — prep done; cut-over pending
+
+- Backend `CORS_ORIGINS` + `CORSMiddleware`; frontend `VITE_API_BASE_URL`
+  (defaults relative). Deploy notes in `frontend/README.md`. Verified CORS
+  headers for an allowed origin + 200 preflight.
+- **Pending (do not skip):** a live end-to-end pass (login → queue → review →
+  send) against a real DB, then delete `dashboard_app.py` + the standalone
+  Streamlit apps and flip the README/PROJECT_STATE to "React is the UI".
 
 ## ✅ Phase 6 Chunk 6 — done (analytics overview)
 
@@ -74,7 +83,8 @@ History: `CHANGELOG.md`.
    history (Customer text rendered as text, never HTML).
 5. ☑ KB upload panel (file/URL/FAQ) + mailbox connection panel.
 6. ☑ Analytics / dashboard overview (`/overview` → `/dashboard/stats`).
-7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
+7. ◐ Cut over: prod CORS + `VITE_API_BASE_URL` done; serving/deploy documented.
+   Streamlit retirement pending a live end-to-end test.
 
 ## Immediate next steps for the next session
 1. Start Phase 6 chunk 7 — cut over: a production build/serve story + CORS

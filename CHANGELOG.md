@@ -5,6 +5,19 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 7 (prep) — production CORS + API base URL
+- Backend: configurable `CORS_ORIGINS` (`backend/config.py`) + `CORSMiddleware`
+  (`backend/main.py`), so the built SPA can call the API from a separate origin
+  in production (dev still uses the Vite proxy, same-origin). Verified: an
+  allowed origin gets `access-control-allow-origin` and a 200 preflight.
+- Frontend: the API client base URL is now `VITE_API_BASE_URL` + `/api/v1`,
+  defaulting to relative (dev proxy / same-origin). `frontend/.env.example` +
+  a README "Production build & deploy" section.
+- **Streamlit retirement is intentionally deferred** to a live end-to-end test
+  (login → queue → review → send) against a real DB — held this session because
+  Neon DNS was unavailable in the sandbox. `dashboard_app.py` stays the working
+  UI until then.
+
 ### Chunk 6 — analytics / overview
 - `OverviewPage` (`/overview`): `GET /dashboard/stats` rendered as stat cards —
   awaiting-review depth (links to the queue), escalated count, total, and the

@@ -36,3 +36,19 @@ The landing page shows a backend-connectivity badge driven by `/health`.
 | `npm run preview`                 | Serve the production build locally                     |
 | `npm run lint`                    | ESLint                                                 |
 | `npm run format` / `format:check` | Prettier write / check                                 |
+
+## Production build & deploy
+
+```bash
+npm run build      # → dist/ (static assets)
+```
+
+Serve `dist/` from any static host/CDN, with a SPA fallback that rewrites
+unknown paths to `index.html` (client-side routing). Two ways to reach the API:
+
+- **Same origin** (recommended): put the API and the static SPA behind one
+  domain (reverse proxy `/api` + `/health` to the backend). Requests stay
+  relative — no CORS, nothing to configure.
+- **Separate origin**: set `VITE_API_BASE_URL` to the API origin at build time
+  (see `.env.example`), and add that SPA origin to the backend's
+  `CORS_ORIGINS`.

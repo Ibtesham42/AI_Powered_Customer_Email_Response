@@ -1,4 +1,5 @@
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -25,6 +26,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS for the Vite + React SPA (ADR-0004). Dev uses the Vite proxy (same
+# origin); these origins matter for a separate-origin production deploy. The SPA
+# authenticates with bearer tokens, so credentials are not needed.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Rate limiting (slowapi).
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -34,6 +46,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 def _invalid_transition_handler(request: Request, exc: InvalidTransitionError):
     """Map an illegal state-machine transition to HTTP 409 Conflict."""
     return JSONResponse(status_code=409, content={"detail": str(exc)})
+
 
 # The database schema is managed entirely by Alembic — run `alembic upgrade head`.
 # All feature routes are versioned under /api/v1.

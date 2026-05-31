@@ -60,6 +60,18 @@ class Settings:
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:8000")
     RESET_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "30"))
 
+    # --- CORS (frontend SPA) ---
+    # Browser origins allowed to call the API. In dev the Vite proxy makes the
+    # SPA same-origin so this is unused; set it for a separate-origin production
+    # deploy (comma-separated). The SPA uses bearer tokens, not cookies.
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+        ).split(",")
+        if origin.strip()
+    ]
+
     # --- Escalation engine (Phase 5) ---
     # A fresh AI draft escalates its Ticket to a human when confidence falls
     # below this, or once the thread already has this many outbound replies

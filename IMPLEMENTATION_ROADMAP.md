@@ -161,8 +161,10 @@ the backend via Vite's proxy (no CORS in dev).
 - ☐ Chunk 5 — KB upload panel (file / URL / FAQ) with index status; mailbox
   connection panel.
 - ☐ Chunk 6 — analytics / dashboard overview (`/dashboard`, ticket stats).
-- ☐ Chunk 7 — cut over: serve the SPA + production CORS decision; retire
-  `dashboard_app.py`.
+- ◐ Chunk 7 — cut over: prod `CORS_ORIGINS` + `CORSMiddleware` and a
+  `VITE_API_BASE_URL`-aware API client done; serving/deploy documented in
+  `frontend/README.md`. Retiring `dashboard_app.py` is deferred to a live
+  end-to-end test (login → queue → review → send) against a real DB.
 
 ## Cross-cutting (ongoing)
 
