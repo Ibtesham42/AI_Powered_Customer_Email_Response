@@ -186,8 +186,10 @@ audit items are deliberately out of scope for now.*
   `MAILBOX_ENCRYPTION_REQUIRED`), features refuse without a key (`/mailbox/connect`
   → 503), backup/recovery + rotation runbook
   (`docs/runbooks/mailbox-encryption-key.md`). 4 tests. *(Low)*
-- ☐ Chunk 4 (H2) — short access-token TTL + real revocation via a per-user
-  `token_version` claim (logout-all / reset bumps it). *(Medium)*
+- ☑ Chunk 4 (H2) — short access-token TTL (default 30 min) + real revocation
+  via a per-user `token_version` claim (`get_current_user` rejects stale
+  versions); `POST /auth/logout-all` + password reset bump it. Migration
+  `a1b2c3d4e5f6`. 4 tests. *(Medium)*
 - ☐ Chunk 5 (H1) — token transport hardening: refresh token → httpOnly+Secure+
   SameSite cookie (off localStorage), access token in memory, security headers,
   HTTPS-in-prod. Backend + SPA. *(High)*

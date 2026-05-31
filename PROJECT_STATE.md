@@ -88,7 +88,8 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   `rag_service.retrieve` returns the nearest chunks by cosine distance,
   filtered by `company_id`; the top chunk's similarity grounds the AI draft
   confidence. The legacy FAISS path is standalone-apps-only.
-- **Migrations** — Alembic; current head `4da268d4e51a`.
+- **Migrations** — Alembic; current head `a1b2c3d4e5f6` (adds
+  `users.token_version`). Run `alembic upgrade head` on deploy.
 
 ## Deployment status
 
@@ -108,9 +109,12 @@ managed Postgres.
 
 ## Auth state
 
-- Access token: JWT, `ACCESS_TOKEN_EXPIRE_MINUTES` (default 480).
+- Access token: JWT, `ACCESS_TOKEN_EXPIRE_MINUTES` (default **30**). Carries a
+  per-user `token_version`; `get_current_user` rejects a stale version (401).
+  Revoke all access tokens via `POST /auth/logout-all` or a password reset
+  (both bump `token_version` + revoke refresh tokens — `revoke_all_sessions`).
 - Refresh token: opaque, SHA-256 hashed in `refresh_tokens`, 30-day default;
-  rotated on `/auth/refresh`, revoked on `/auth/logout`.
+  rotated on `/auth/refresh`, revoked on `/auth/logout` (+ logout-all / reset).
 - Password reset: `/auth/forgot-password` + `/auth/reset-password`; opaque
   SHA-256-hashed tokens in `password_reset_tokens`, single-use, 30-min
   default. Completing a reset revokes all the user's refresh tokens. Reset
@@ -126,8 +130,8 @@ managed Postgres.
 - Neon cloud Postgres chosen over local Docker.
 - Enum-ish columns stored as `String` + `StrEnum` app-layer validation (not
   native PG enums) — see `backend/models/enums.py`.
-- Access token kept long (480 min) so the legacy Streamlit dashboard works
-  without silent refresh; lower it when the Next.js frontend ships.
+- Access token short (30 min) with `token_version`-based revocation (H2); the
+  React SPA refreshes transparently, legacy Streamlit re-logs-in on expiry.
 
 ## Testing
 

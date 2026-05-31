@@ -7,6 +7,21 @@ each entry references its git commit.
 
 Closing the Critical + High blockers from the production-readiness audit.
 
+### Chunk 4 (H2) — short access-token TTL + real revocation
+- `users.token_version` (migration `a1b2c3d4e5f6`, `server_default="1"`). The
+  access-token JWT now carries `token_version`; `get_current_user` rejects a
+  token whose version ≠ the user's current one (401). The check is free — the
+  dependency already loads the user row.
+- `auth_service.revoke_all_sessions` bumps `token_version` (kills outstanding
+  **access** tokens) **and** revokes all refresh tokens. Wired into a new
+  `POST /auth/logout-all` (sign out everywhere) and into password reset (so a
+  reset truly ends every session, access included).
+- `ACCESS_TOKEN_EXPIRE_MINUTES` default 480 → **30** (the SPA refreshes
+  transparently; the legacy Streamlit dashboard re-logs-in on expiry).
+- `tests/test_token_revocation.py` (4): logout-all invalidates the access token,
+  an out-of-band version bump revokes it, password reset revokes then re-login
+  works, and a normal refresh keeps the token valid.
+
 ### Chunk 3 (H3) — mailbox encryption key: fail-fast + refuse-without-key
 - Startup self-check (`crypto.validate_at_startup`, called from `main.py`): an
   **invalid** key always aborts startup; a **missing** key aborts only when the

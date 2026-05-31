@@ -26,6 +26,11 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Revocation check: the token's version must match the user's current one.
+    # A bump (sign-out-everywhere / password reset) invalidates older tokens.
+    if payload.get("token_version") != user.token_version:
+        raise HTTPException(status_code=401, detail="Token has been revoked")
+
     return {
         "id": user.id,
         "email": user.email,

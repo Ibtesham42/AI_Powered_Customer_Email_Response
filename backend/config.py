@@ -31,11 +31,12 @@ class Settings:
     # --- JWT / auth ---
     SECRET_KEY: str = _require("SECRET_KEY")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    # Access token is kept long enough for the legacy Streamlit dashboard,
-    # which has no silent refresh. Lower to ~15-30 min once the Next.js
-    # frontend (with token refresh) ships.
+    # Short-lived: the React SPA refreshes transparently on 401, and short
+    # access tokens limit the window of a stolen token (audit H2; revocation is
+    # via token_version). The legacy Streamlit dashboard now re-logs-in when it
+    # expires — acceptable while it is being retired.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
     )
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 

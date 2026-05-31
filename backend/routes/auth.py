@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from backend.auth.dependencies import get_current_user
 from backend.auth.hashing import hash_password, verify_password
 from backend.auth.jwt_handler import create_access_token
 from backend.config import settings
@@ -20,7 +21,7 @@ from backend.services import audit_service, email_service, password_reset_servic
 from backend.services.auth_service import (
     get_active_refresh_token,
     issue_refresh_token,
-    revoke_all_refresh_tokens,
+    revoke_all_sessions,
     revoke_refresh_token,
 )
 
@@ -35,6 +36,9 @@ def _issue_tokens(db: Session, user: User, request: Request) -> dict:
             "user_id": user.id,
             "company_id": user.company_id,
             "sub": user.email,
+            # Carried so a token_version bump (sign-out-everywhere / reset)
+            # invalidates this access token — see get_current_user.
+            "token_version": user.token_version,
         }
     )
     refresh_token = issue_refresh_token(
@@ -177,6 +181,29 @@ def logout(
     return {"message": "Logged out"}
 
 
+@router.post("/logout-all")
+def logout_all(
+    request: Request,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sign out of every session: invalidate all of the user's access tokens
+    (token_version bump) and revoke all refresh tokens. The caller must log in
+    again afterwards."""
+    revoked = revoke_all_sessions(db, user["id"])
+    audit_service.record(
+        db,
+        action="logout_all",
+        request=request,
+        company_id=user["company_id"],
+        user_id=user["id"],
+        entity_type="user",
+        entity_id=user["id"],
+        metadata={"sessions_revoked": revoked},
+    )
+    return {"message": "Signed out of all sessions"}
+
+
 @router.post("/forgot-password")
 @limiter.limit("5/minute")
 def forgot_password(
@@ -194,9 +221,7 @@ def forgot_password(
             email_service.send_password_reset_email(user.email, reset_url)
         except Exception:
             # Never leak a send failure to the caller — log it and still 200.
-            logger.exception(
-                "Failed to send password-reset email to %s", user.email
-            )
+            logger.exception("Failed to send password-reset email to %s", user.email)
         audit_service.record(
             db,
             action="password_reset_requested",
@@ -207,9 +232,7 @@ def forgot_password(
             entity_id=user.id,
             metadata={"email": user.email},
         )
-    return {
-        "message": "If that email is registered, a reset link has been sent."
-    }
+    return {"message": "If that email is registered, a reset link has been sent."}
 
 
 @router.post("/reset-password")
@@ -228,14 +251,14 @@ def reset_password(
         else None
     )
     if row is None or user is None:
-        raise HTTPException(
-            status_code=400, detail="Invalid or expired reset token"
-        )
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.password_hash = hash_password(payload.new_password)
     # consume_reset_token commits — persisting the new hash in the same session.
     password_reset_service.consume_reset_token(db, row)
-    revoked = revoke_all_refresh_tokens(db, user.id)
+    # Bump token_version + revoke refresh tokens: kills access *and* refresh
+    # tokens, so a thief who triggered the reset path can't keep a live session.
+    revoked = revoke_all_sessions(db, user.id)
 
     audit_service.record(
         db,
