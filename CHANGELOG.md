@@ -7,6 +7,20 @@ each entry references its git commit.
 
 Closing the Critical + High blockers from the production-readiness audit.
 
+### Chunk 2 (H4) — SSRF guard on URL knowledge-base ingestion
+- `app/rag/url_guard.py` — `validate_public_url`: allows only http/https and
+  only hosts that resolve exclusively to public IPs; rejects loopback, private,
+  link-local (incl. the `169.254.169.254` cloud-metadata endpoint), reserved,
+  multicast, unspecified, and IPv4-mapped-IPv6 equivalents (`UnsafeUrlError`).
+- `fetch_url_text` now validates before fetching and follows redirects manually
+  with `follow_redirects=False`, re-validating every hop (capped at 5) — a
+  redirect can't bounce to an internal address.
+- `POST /api/v1/data/url` validates up front and returns 400 on an unsafe URL
+  (the background fetch re-validates as defence in depth).
+- 16 tests (`tests/test_url_guard.py`): public allowed; loopback/private/
+  link-local/metadata/IPv6-loopback/unspecified rejected; non-http(s) schemes
+  rejected; and the route returns 400 for the metadata IP.
+
 ### Chunk 1 (C1) — test harness + tenancy/auth safety net
 - `pytest` + `pytest-asyncio` added (`requirements-dev.txt`, `pyproject.toml`
   `[tool.pytest.ini_options]` with `asyncio_mode=auto`). Fixes the broken

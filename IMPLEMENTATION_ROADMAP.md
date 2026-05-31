@@ -177,8 +177,10 @@ audit items are deliberately out of scope for now.*
   `pytest-asyncio`; auth + tenant-isolation tests on SQLite (`kb_chunks` +
   `audit_logs` excluded); **35 tests green**. RAG-scoping + audit assertions
   deferred to the Postgres CI run (chunk 6). *(High)*
-- ☐ Chunk 2 (H4) — SSRF guard on URL KB ingestion: reject loopback / private /
-  link-local / metadata IPs + non-http(s) schemes. *(Low)*
+- ☑ Chunk 2 (H4) — SSRF guard on URL KB ingestion (`app/rag/url_guard.py`):
+  rejects loopback / private / link-local / metadata IPs + non-http(s); enforced
+  at fetch (each redirect hop, `follow_redirects=False`) and at the `/data/url`
+  route. 16 tests. *(Low)*
 - ☐ Chunk 3 (H3) — mailbox encryption key fail-fast + rotation/backup runbook.
   *(Low)*
 - ☐ Chunk 4 (H2) — short access-token TTL + real revocation via a per-user
