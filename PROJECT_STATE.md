@@ -1,8 +1,8 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 5 chunk 3**
-(Phases 0–4 merged to `main`; chunks 1–3 on `feature/phase-5-ai-pipeline`).
-Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phase 5 complete**
+(chunks 1–4; Phases 0–4 merged to `main`; Phase 5 on
+`feature/phase-5-ai-pipeline`, awaiting merge). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
@@ -60,6 +60,12 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   the current email. `transition_ticket` generates a 1-3 sentence
   `tickets.summary` on RESOLVED/CLOSED (best-effort; failure never breaks the
   transition), which becomes memory on the Customer's future Tickets.
+- **Escalation engine** — `escalation_service` flags a Ticket as escalated when
+  a fresh draft trips a rule (priority: `needs_human` → complaint → repeated
+  replies → low confidence; manual reject is the fifth, at the reject route).
+  Wired into the worker and the regenerate route. Thresholds
+  (`ESCALATION_CONFIDENCE_THRESHOLD`, `ESCALATION_MAX_REPLIES`) are in
+  `backend/config.py`. Escalated Tickets drop out of the auto-AI review queue.
 - **Knowledge base** — `kb_documents` / `kb_chunks` on pgvector, per-Company.
   Ingestion is in-process (extract → chunk → embed → store) from file uploads
   (`/data/upload`), URLs (`/data/url`) and FAQ entries (`/data/faq`).

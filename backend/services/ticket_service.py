@@ -275,6 +275,21 @@ def list_ticket_messages(db: Session, company_id: int, ticket_id: int) -> list[M
     )
 
 
+def count_outbound_messages(db: Session, company_id: int, ticket_id: int) -> int:
+    """How many replies have already gone out on a Ticket. Feeds the
+    repeated-replies escalation rule."""
+    return (
+        db.query(func.count(Message.id))
+        .filter(
+            Message.company_id == company_id,
+            Message.ticket_id == ticket_id,
+            Message.direction == MessageDirection.OUTBOUND,
+        )
+        .scalar()
+        or 0
+    )
+
+
 def list_review_queue(db: Session, company_id: int) -> list[Message]:
     """Inbound Messages awaiting human review: DRAFTED, on a non-escalated
     Ticket, lowest confidence first."""

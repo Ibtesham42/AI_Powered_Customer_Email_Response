@@ -6,8 +6,9 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 5 in progress (chunks 1–3 done) on
-`feature/phase-5-ai-pipeline`; Phases 0–4 are merged to `main`. See
+**Current checkpoint:** Phase 5 complete (chunks 1–4) on
+`feature/phase-5-ai-pipeline`; Phases 0–4 are merged to `main`. Next: merge to
+`main` (on the user's OK), then Phase 6 — dashboard polish. See
 `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
@@ -110,7 +111,7 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
   cosine similarity. (The LLM self-rating component is delivered by Phase 5's
   structured generation call.)
 
-## Phase 5 — AI pipeline  ◐ IN PROGRESS
+## Phase 5 — AI pipeline  ☑ DONE
 *Goal: structured, memory-aware, escalation-driven generation.*
 
 - ☑ One structured Groq call → `{ intent, confidence, needs_human, draft }` —
@@ -129,8 +130,10 @@ Status legend: ☐ todo · ◐ in progress · ☑ done.
 - ☑ Hallucination-reduction prompt: answer only from context, otherwise
   defer to a human — chunk 2, folded into `build_structured_prompt` (grounding
   rules + the `needs_human` defer signal).
-- ☐ Escalation engine: low confidence, human request, complaint, repeated
-  replies, manual reject.
+- ☑ Escalation engine: low confidence, human request, complaint, repeated
+  replies, manual reject — chunk 4: `backend/services/escalation_service.py`
+  (`evaluate` / `apply_draft_escalation`), wired into the worker and
+  `/messages/{id}/regenerate`; thresholds in `backend/config.py`.
 
 ## Phase 6 — Dashboard polish (still Streamlit)
 *Goal: full human-in-the-loop on the existing frontend.*

@@ -37,9 +37,7 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
         os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")
     )
-    REFRESH_TOKEN_EXPIRE_DAYS: int = int(
-        os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30")
-    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -55,16 +53,22 @@ class Settings:
     # mailboxes. Optional at startup; the email service fails loudly on first
     # use if the key is missing.
     RESEND_API_KEY: str | None = os.getenv("RESEND_API_KEY")
-    RESEND_FROM_EMAIL: str = os.getenv(
-        "RESEND_FROM_EMAIL", "onboarding@resend.dev"
-    )
+    RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
     # --- Password reset ---
     # Base URL the reset link points at (the frontend reset page; Phase 7).
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:8000")
-    RESET_TOKEN_EXPIRE_MINUTES: int = int(
-        os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "30")
+    RESET_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "30"))
+
+    # --- Escalation engine (Phase 5) ---
+    # A fresh AI draft escalates its Ticket to a human when confidence falls
+    # below this, or once the thread already has this many outbound replies
+    # (the AI's answers aren't resolving it). Other rules — needs_human,
+    # complaint intent, manual reject — are unconditional.
+    ESCALATION_CONFIDENCE_THRESHOLD: int = int(
+        os.getenv("ESCALATION_CONFIDENCE_THRESHOLD", "40")
     )
+    ESCALATION_MAX_REPLIES: int = int(os.getenv("ESCALATION_MAX_REPLIES", "2"))
 
 
 settings = Settings()

@@ -3,7 +3,23 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 5 — AI pipeline (in progress) · branch `feature/phase-5-ai-pipeline`
+## Phase 5 — AI pipeline (done) · branch `feature/phase-5-ai-pipeline`
+
+### Chunk 4 — escalation engine (completes Phase 5)
+- `backend/services/escalation_service.py` — evaluates a fresh AI draft against
+  the escalation rules (first match wins): `needs_human` → complaint intent →
+  `repeated_replies` (thread already has `ESCALATION_MAX_REPLIES` replies out)
+  → `low_confidence` (below `ESCALATION_CONFIDENCE_THRESHOLD`). Manual reject is
+  the fifth rule, already handled at `/messages/{id}/reject`.
+- `apply_draft_escalation` flags the Ticket via `escalate_ticket`; idempotent
+  (no-op if already escalated). An escalated Ticket leaves the auto-AI review
+  queue (the queue already filters `escalated == False`).
+- Wired into both draft paths: the worker (`process_queue`) and
+  `POST /messages/{id}/regenerate`, after `record_ai_draft`. This is where
+  chunk 2's `needs_human` signal is finally consumed.
+- `ticket_service.count_outbound_messages` — reply count for the repeated-replies
+  rule. Thresholds in `backend/config.py` (`ESCALATION_CONFIDENCE_THRESHOLD`,
+  `ESCALATION_MAX_REPLIES`), env-overridable; documented in `.env.example`.
 
 ### Chunk 3 — memory injection + Ticket summaries
 - Memory injection: `ai_service.build_memory` assembles the prompt input from

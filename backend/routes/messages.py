@@ -10,6 +10,7 @@ from backend.serializers import message_dict
 from backend.services import (
     ai_service,
     audit_service,
+    escalation_service,
     mailbox_service,
     ticket_service,
 )
@@ -37,6 +38,9 @@ def regenerate_draft(
     ticket_service.record_ai_draft(
         db, message, result["reply"], result["confidence"], result["intent"]
     )
+    ticket = ticket_service.get_ticket(db, user["company_id"], message.ticket_id)
+    if ticket is not None:
+        escalation_service.apply_draft_escalation(db, ticket, result)
     return message_dict(message)
 
 

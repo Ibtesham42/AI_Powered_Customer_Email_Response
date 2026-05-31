@@ -32,6 +32,7 @@ from backend.models.message import Message  # noqa: E402
 from backend.models.user import User  # noqa: E402, F401
 from backend.services import (  # noqa: E402
     ai_service,
+    escalation_service,
     mailbox_service,
     ticket_service,
 )
@@ -168,6 +169,11 @@ def process_queue() -> None:
                     result["confidence"],
                     result["intent"],
                 )
+                ticket = ticket_service.get_ticket(
+                    db, message.company_id, message.ticket_id
+                )
+                if ticket is not None:
+                    escalation_service.apply_draft_escalation(db, ticket, result)
                 drafted += 1
                 logger.info("Drafted reply for message %s", message.id)
             except Exception:

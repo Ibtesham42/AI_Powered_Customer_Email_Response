@@ -1,8 +1,20 @@
 # Current Tasks
 
-Active checkpoint: **Phase 5 chunk 3 done** on `feature/phase-5-ai-pipeline`.
-Phases 0–4 are merged to `main`. Context: `PROJECT_STATE.md` ·
-Plan: `IMPLEMENTATION_ROADMAP.md`.
+Active checkpoint: **Phase 5 COMPLETE** (chunks 1–4) on
+`feature/phase-5-ai-pipeline`. Phases 0–4 are merged to `main`.
+Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
+
+## ✅ Phase 5 Chunk 4 — done (escalation engine, completes Phase 5)
+
+- `escalation_service.evaluate` / `apply_draft_escalation` — escalate a fresh
+  draft's Ticket on (priority order) `needs_human` → complaint → repeated
+  replies (≥ `ESCALATION_MAX_REPLIES` out) → low confidence
+  (< `ESCALATION_CONFIDENCE_THRESHOLD`). Idempotent; manual reject is the 5th
+  rule (already at `/messages/{id}/reject`).
+- Wired into the worker and `/messages/{id}/regenerate`; consumes chunk 2's
+  `needs_human`. `ticket_service.count_outbound_messages` backs the repeated
+  rule. Thresholds in `backend/config.py` + `.env.example`.
+- Verified: full rule/priority/boundary/idempotency unit tests.
 
 ## ✅ Phase 5 Chunk 3 — done (memory injection + Ticket summaries)
 
@@ -41,12 +53,15 @@ See `CHANGELOG.md` for commit-level detail.
    retrieval similarity + LLM self-rating.
 3. ☑ Memory injection: current Ticket verbatim + past-Ticket summaries within a
    token budget; generate a Ticket `summary` on resolve/close.
-4. ☐ Escalation engine: low confidence, human request, complaint, repeated
+4. ☑ Escalation engine: low confidence, human request, complaint, repeated
    replies, manual reject (consumes `needs_human`).
 
 ## Immediate next steps for the next session
-1. Commit chunk 3 on `feature/phase-5-ai-pipeline`.
-2. Start Phase 5 chunk 4 (escalation engine) — the last Phase 5 chunk.
+1. Commit chunk 4 on `feature/phase-5-ai-pipeline`.
+2. Merge `feature/phase-5-ai-pipeline` → `main` (on the user's OK).
+3. Start Phase 6 — dashboard polish (review queue confidence sort + escalation
+   badges, approve/edit/reject/regenerate, conversation history, KB + mailbox
+   panels, analytics).
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see

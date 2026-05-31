@@ -86,7 +86,10 @@ Inbound email (email_worker.py polling each Company's mailbox over IMAP)
        -> confidence = retrieval similarity blended with the LLM self-rating
   -> ticket_service.record_ai_draft(): ai_draft + confidence + intent saved,
      review_status=DRAFTED
-  -> dashboard GET /api/v1/tickets/queue  (lowest confidence first)
+  -> escalation_service.apply_draft_escalation(): escalate the Ticket on
+     needs_human / complaint / repeated replies / low confidence
+  -> dashboard GET /api/v1/tickets/queue  (lowest confidence first;
+     escalated Tickets excluded)
   -> agent edits -> PUT /api/v1/messages/{id}/draft -> review_status=REVIEWED
   -> POST /api/v1/messages/{id}/send -> Company mailbox SMTP -> review_status=SENT,
      outbound Message created, Ticket -> PENDING
