@@ -23,9 +23,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   (ADR-0004). Talks to the backend over `/api/v1` (Vite dev proxy). Has a typed
   API client with transparent refresh-on-401, an auth store, react-router
   routes (login/signup/forgot/reset), an `AppLayout` shell, the **review queue**
-  at `/`, and a **ticket detail / draft-review** view at `/tickets/:id`
-  (regenerate/approve/edit/reject/send wired to `/messages/{id}/*`). KB /
-  mailbox / analytics are the next chunks.
+  at `/`, a **ticket detail / draft-review** view at `/tickets/:id`
+  (regenerate/approve/edit/reject/send), a **knowledge base** panel
+  (`/knowledge-base`: list + owner-only File/URL/FAQ upload) and a **mailbox**
+  panel (`/mailbox`: details + owner-only connect). Analytics + the cut-over
+  are the remaining chunks.
 - **`scripts/email_worker.py`** — background IMAP poll + AI queue worker.
 
 ## Completed modules

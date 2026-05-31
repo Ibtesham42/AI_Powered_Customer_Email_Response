@@ -5,6 +5,21 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 5 — knowledge base + mailbox panels
+- `KnowledgeBasePage` (`/knowledge-base`): lists `GET /data/documents` with
+  per-document status badges (pending/processing/indexed/error + error text),
+  plus an owner-only uploader with File / URL / FAQ modes (`/data/upload`,
+  `/data/url`, `/data/faq`). Refetches the list on success.
+- `MailboxPage` (`/mailbox`): shows the connected mailbox (`GET /mailbox`,
+  treating 404 as "none") with a status badge, and an owner-only connect form
+  (`POST /mailbox/connect`, IMAP/SMTP defaults). Agents see read-only views +
+  an owner-only notice (RBAC for UX; the backend is the real gate).
+- Client gained multipart support: `request` passes `FormData` through without
+  a JSON content-type, exposed as `api.postForm` (reuses refresh-on-401).
+- `api/data.ts` + `api/mailbox.ts`; `KbDocument`/`Mailbox` types;
+  `KbStatusBadge`/`MailboxStatusBadge`; nav items added to `AppLayout`.
+- Verified: lint, strict build, proxy auth-gating check on the new routes.
+
 ### Chunk 4 — draft review
 - `TicketDetailPage` (`/tickets/:ticketId`): `GET /tickets/{id}` with
   loading/error states; ticket header (status + escalated badges), customer,

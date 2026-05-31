@@ -1,9 +1,18 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 4 done** (draft review) on
+Active checkpoint: **Phase 6 chunk 5 done** (KB + mailbox panels) on
 `feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ✅ Phase 6 Chunk 5 — done (KB + mailbox panels)
+
+- `KnowledgeBasePage` (`/knowledge-base`): document list + status badges +
+  owner-only File/URL/FAQ uploader. Client gained `api.postForm` (multipart).
+- `MailboxPage` (`/mailbox`): connected-mailbox details + owner-only connect
+  form (404 = none). Agents get read-only + owner-only notices.
+- `api/data.ts`, `api/mailbox.ts`, KB/Mailbox types + badges; nav items added.
+- Verified: lint, strict build, proxy auth-gating on the new routes.
 
 ## ✅ Phase 6 Chunk 4 — done (draft review)
 
@@ -56,14 +65,14 @@ History: `CHANGELOG.md`.
    from this queue by the backend — a separate escalations view is a later add.)
 4. ☑ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
    history (Customer text rendered as text, never HTML).
-5. ☐ KB upload panel (file/URL/FAQ) + mailbox connection panel.
+5. ☑ KB upload panel (file/URL/FAQ) + mailbox connection panel.
 6. ☐ Analytics / dashboard overview (`/dashboard`).
 7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Start Phase 6 chunk 5 — KB upload panel (file/URL/FAQ via `/data/upload`,
-   `/data/url`, `/data/faq`) with index status, and a mailbox connection panel
-   (`/mailbox`, `/mailbox/connect`). Add nav items for them in `AppLayout`.
+1. Start Phase 6 chunk 6 — analytics / dashboard overview. Check the
+   `/api/v1/dashboard` route (and `ticket_service.company_stats`) for the
+   stats shape, then add an overview page with the counts.
 
 ## Done so far
 Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model

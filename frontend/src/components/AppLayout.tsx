@@ -2,7 +2,11 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
 
-const NAV = [{ to: '/', label: 'Review queue', end: true }]
+const NAV = [
+  { to: '/', label: 'Review queue', end: true },
+  { to: '/knowledge-base', label: 'Knowledge base', end: false },
+  { to: '/mailbox', label: 'Mailbox', end: false },
+]
 
 export function AppLayout() {
   const { user, logout } = useAuth()

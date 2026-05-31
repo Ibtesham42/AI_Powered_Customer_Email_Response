@@ -4,7 +4,9 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import LoginPage from './pages/LoginPage'
+import MailboxPage from './pages/MailboxPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ReviewQueuePage from './pages/ReviewQueuePage'
 import SignupPage from './pages/SignupPage'
@@ -23,6 +25,8 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<ReviewQueuePage />} />
               <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
+              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+              <Route path="/mailbox" element={<MailboxPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

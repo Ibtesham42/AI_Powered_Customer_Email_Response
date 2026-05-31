@@ -1,4 +1,9 @@
-import type { Intent, TicketStatus } from '../lib/types'
+import type {
+  Intent,
+  KbDocStatus,
+  MailboxStatus,
+  TicketStatus,
+} from '../lib/types'
 
 const INTENT_LABELS: Record<Intent, string> = {
   product_inquiry: 'Product inquiry',
@@ -65,6 +70,37 @@ export function EscalatedBadge({ reason }: { reason: string | null }) {
   return (
     <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
       Escalated{reason ? `: ${reason.replace(/_/g, ' ')}` : ''}
+    </span>
+  )
+}
+
+const KB_STATUS_TONE: Record<KbDocStatus, string> = {
+  pending: 'bg-slate-100 text-slate-600',
+  processing: 'bg-amber-100 text-amber-700',
+  indexed: 'bg-emerald-100 text-emerald-700',
+  error: 'bg-rose-100 text-rose-700',
+}
+
+export function KbStatusBadge({ status }: { status: KbDocStatus }) {
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${KB_STATUS_TONE[status]}`}
+    >
+      {status}
+    </span>
+  )
+}
+
+export function MailboxStatusBadge({ status }: { status: MailboxStatus }) {
+  const tone =
+    status === 'connected'
+      ? 'bg-emerald-100 text-emerald-700'
+      : 'bg-rose-100 text-rose-700'
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${tone}`}
+    >
+      {status}
     </span>
   )
 }
