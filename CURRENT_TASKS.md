@@ -1,9 +1,20 @@
 # Current Tasks
 
-Active checkpoint: **Phase 6 chunk 2 done** (auth) on
+Active checkpoint: **Phase 6 chunk 3 done** (review queue) on
 `feature/phase-6-frontend`. Phases 0–5 are merged to `main`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` · ADR-0004 ·
 History: `CHANGELOG.md`.
+
+## ✅ Phase 6 Chunk 3 — done (review queue)
+
+- `AppLayout` app shell (header + nav + Outlet); `/` is now the review queue
+  (DashboardPage placeholder removed).
+- `ReviewQueuePage`: `GET /tickets/queue` with loading/empty/error + refresh;
+  cards show customer/subject + message + AI draft (rendered as text) with
+  intent + confidence badges (lowest confidence first). `ConfidenceBadge` /
+  `IntentBadge`; `api/tickets.ts`; `QueueItem` type.
+- Verified: lint, strict build, live proxy check (queue auth-gated, 403 w/o
+  token). Queue data needs DB-backed login to view.
 
 ## ✅ Phase 6 Chunk 2 — done (auth)
 
@@ -29,8 +40,9 @@ History: `CHANGELOG.md`.
 1. ☑ Scaffold (Vite + TS + Tailwind, dev proxy, /health check).
 2. ☑ Auth: typed API client, login/signup (mirror backend validation), auth
    store, protected routes, transparent token refresh on 401, forgot/reset.
-3. ☐ Review queue (primary surface): `GET /tickets/queue`, confidence sort +
-   escalation/intent badges; loading/empty/error states.
+3. ☑ Review queue (primary surface): `GET /tickets/queue`, confidence sort +
+   intent badges; loading/empty/error states. (Escalated Tickets are excluded
+   from this queue by the backend — a separate escalations view is a later add.)
 4. ☐ Draft review: approve/edit/rewrite/reject/regenerate/send + conversation
    history (Customer text rendered as text, never HTML).
 5. ☐ KB upload panel (file/URL/FAQ) + mailbox connection panel.
@@ -38,9 +50,10 @@ History: `CHANGELOG.md`.
 7. ☐ Cut over: serve the SPA + prod CORS; retire `dashboard_app.py`.
 
 ## Immediate next steps for the next session
-1. Start Phase 6 chunk 3 — review queue (the primary working surface):
-   `GET /api/v1/tickets/queue`, confidence sort, escalation/intent badges,
-   loading/empty/error states. Add an app shell/layout + nav.
+1. Start Phase 6 chunk 4 — draft review: a ticket/message detail view with
+   approve/edit/rewrite/reject/regenerate/send, using the `/messages/{id}/*`
+   routes and `GET /tickets/{id}` for the conversation history. Make queue
+   cards link into it.
 
 ## Done so far
 Phases 0–5 are on `main`: safety/cleanup, DB + auth, domain model

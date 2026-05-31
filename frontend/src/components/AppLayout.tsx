@@ -1,6 +1,10 @@
+import { NavLink, Outlet } from 'react-router-dom'
+
 import { useAuth } from '../auth/useAuth'
 
-export default function DashboardPage() {
+const NAV = [{ to: '/', label: 'Review queue', end: true }]
+
+export function AppLayout() {
   const { user, logout } = useAuth()
 
   return (
@@ -26,19 +30,28 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+        <nav className="mx-auto flex max-w-5xl gap-1 px-6">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+                  isActive
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900">
-            You're signed in
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            The review queue, knowledge base, mailbox, and analytics land in the
-            next chunks. For now this confirms authentication and the API client
-            work end to end.
-          </p>
-        </div>
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        <Outlet />
       </main>
     </div>
   )

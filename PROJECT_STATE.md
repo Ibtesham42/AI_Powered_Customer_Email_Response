@@ -22,8 +22,9 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
 - **`frontend/`** — the production UI: Vite + React + TS + Tailwind SPA
   (ADR-0004). Talks to the backend over `/api/v1` (Vite dev proxy). Has a typed
   API client with transparent refresh-on-401, an auth store, react-router
-  routes (login/signup/forgot/reset + a protected dashboard), and reusable form
-  UI. Review queue / KB / mailbox / analytics are the next chunks.
+  routes (login/signup/forgot/reset), an `AppLayout` shell, and the **review
+  queue** at `/` (confidence + intent badges, lowest confidence first). Draft
+  review / KB / mailbox / analytics are the next chunks.
 - **`scripts/email_worker.py`** — background IMAP poll + AI queue worker.
 
 ## Completed modules

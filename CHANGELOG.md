@@ -5,6 +5,21 @@ each entry references its git commit.
 
 ## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
 
+### Chunk 3 — review queue
+- `AppLayout` — authed app shell (header with user/role + sign-out, nav,
+  `Outlet`); protected routes now nest under it. The placeholder DashboardPage
+  is gone; `/` is the review queue (the primary working surface).
+- `ReviewQueuePage` — fetches `GET /tickets/queue` with explicit loading /
+  empty / error states and a refresh button. Each row is a card: customer
+  email, subject, the customer's message and the AI draft (rendered as **text**,
+  never HTML — `whitespace-pre-wrap` + `line-clamp`), with intent + confidence
+  badges. Backend returns these lowest-confidence-first.
+- `ConfidenceBadge` (green ≥70 / amber ≥40 / rose <40) + `IntentBadge`
+  (complaint highlighted). `api/tickets.getReviewQueue`; `QueueItem` type mirrors
+  the enriched queue payload.
+- Verified: lint, strict build, and a live proxy check that
+  `/api/v1/tickets/queue` is reachable and auth-gated (403 without a token).
+
 ### Chunk 2 — auth
 - Typed API client (`src/lib/client.ts`): bearer-auth requests, **transparent
   refresh-on-401** (single retry, deduped concurrent refreshes), and
