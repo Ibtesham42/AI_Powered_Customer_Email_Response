@@ -6,9 +6,8 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phase 5 complete (chunks 1–4) on
-`feature/phase-5-ai-pipeline`; Phases 0–4 are merged to `main`. Next: merge to
-`main` (on the user's OK), then Phase 6 — dashboard polish. See
+**Current checkpoint:** Phase 5 complete (chunks 1–4), merged to `main`;
+Phases 0–5 are now on `main`. Next: Phase 6 — dashboard polish. See
 `CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---

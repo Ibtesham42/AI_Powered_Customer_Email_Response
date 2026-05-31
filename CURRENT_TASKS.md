@@ -1,7 +1,7 @@
 # Current Tasks
 
-Active checkpoint: **Phase 5 COMPLETE** (chunks 1–4) on
-`feature/phase-5-ai-pipeline`. Phases 0–4 are merged to `main`.
+Active checkpoint: **Phase 5 COMPLETE** (chunks 1–4) — merged to `main`.
+Phases 0–5 are now on `main`. Next: Phase 6 (dashboard polish).
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md`.
 
 ## ✅ Phase 5 Chunk 4 — done (escalation engine, completes Phase 5)
@@ -57,11 +57,10 @@ See `CHANGELOG.md` for commit-level detail.
    replies, manual reject (consumes `needs_human`).
 
 ## Immediate next steps for the next session
-1. Commit chunk 4 on `feature/phase-5-ai-pipeline`.
-2. Merge `feature/phase-5-ai-pipeline` → `main` (on the user's OK).
-3. Start Phase 6 — dashboard polish (review queue confidence sort + escalation
+1. Cut `feature/phase-6-dashboard` from `main`.
+2. Start Phase 6 — dashboard polish (review queue confidence sort + escalation
    badges, approve/edit/reject/regenerate, conversation history, KB + mailbox
-   panels, analytics).
+   panels, analytics). All on the Streamlit `dashboard_app.py`.
 
 ## Known cautions
 - `TestClient` is broken — test via direct route-function calls (see

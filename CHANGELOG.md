@@ -3,7 +3,7 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 5 — AI pipeline (done) · branch `feature/phase-5-ai-pipeline`
+## Phase 5 — AI pipeline (done) · merged to `main`
 
 ### Chunk 4 — escalation engine (completes Phase 5)
 - `backend/services/escalation_service.py` — evaluates a fresh AI draft against

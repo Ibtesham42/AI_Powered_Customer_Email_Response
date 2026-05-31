@@ -1,8 +1,8 @@
 # Project State
 
 Snapshot of the AI Customer Support SaaS as of **Phase 5 complete**
-(chunks 1–4; Phases 0–4 merged to `main`; Phase 5 on
-`feature/phase-5-ai-pipeline`, awaiting merge). Phase plan:
+(chunks 1–4; Phases 0–5 merged to `main`). Next: Phase 6 (dashboard polish).
+Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
