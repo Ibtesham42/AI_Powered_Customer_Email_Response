@@ -1,12 +1,12 @@
 # Current Tasks
 
-Active checkpoint: **Phase 7 — production hardening, chunks 1 (C1) + 2 (H4)
-done**; chunk 3 (H3) next. On `feature/phase-7-hardening`; Phases 0–6 merged to
+Active checkpoint: **Phase 7 — production hardening, chunks 1–3 (C1, H4, H3)
+done**; chunk 4 (H2) next. On `feature/phase-7-hardening`; Phases 0–6 merged to
 `main`. Closing the Critical + High blockers from the production-readiness audit.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
 History: `CHANGELOG.md`.
 
-Test status: **51 tests green** (`pytest`). RAG-scoping + audit assertions
+Test status: **55 tests green** (`pytest`). RAG-scoping + audit assertions
 deferred to the Postgres CI run (chunk 6).
 
 ## Phase 7 — production hardening (Critical + High audit blockers)
@@ -16,7 +16,9 @@ deferred to the Postgres CI run (chunk 6).
    pytest + pytest-asyncio; SQLite-backed auth/tenant tests; 35 green). **(High)**
 2. ☑ H4 — SSRF guard on URL KB ingestion (`app/rag/url_guard.py`; validated at
    fetch + each redirect hop + the `/data/url` route; 16 tests). **(Low)**
-3. ☐ H3 — mailbox encryption key fail-fast + rotation/backup runbook. **(Low)**
+3. ☑ H3 — mailbox encryption key: fail-fast at startup (invalid always; missing
+   when `MAILBOX_ENCRYPTION_REQUIRED`), features refuse (503) without a key,
+   backup/recovery + rotation runbook. 4 tests. **(Low)**
 4. ☐ H2 — short access-token TTL + revocation via per-user `token_version`
    claim. **(Medium)**
 5. ☐ H1 — token transport hardening: refresh token → httpOnly cookie, access

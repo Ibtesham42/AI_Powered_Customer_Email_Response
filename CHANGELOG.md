@@ -7,6 +7,22 @@ each entry references its git commit.
 
 Closing the Critical + High blockers from the production-readiness audit.
 
+### Chunk 3 (H3) — mailbox encryption key: fail-fast + refuse-without-key
+- Startup self-check (`crypto.validate_at_startup`, called from `main.py`): an
+  **invalid** key always aborts startup; a **missing** key aborts only when the
+  new `MAILBOX_ENCRYPTION_REQUIRED` flag is set, else the app starts with mailbox
+  features disabled and logs a warning.
+- Mailbox features **refuse** without a usable key: `connect_mailbox` and
+  `build_connector` call `crypto.require_configured()` first (before any network
+  work / before `decrypt`); `POST /mailbox/connect` maps the failure to **503**
+  rather than storing plaintext or 500-ing.
+- `crypto.is_configured()` / `require_configured()` helpers added.
+- Runbook `docs/runbooks/mailbox-encryption-key.md`: key custody/backup,
+  recovery when lost, and an offline re-encryption **rotation** procedure (with
+  a ready-to-run script); `.env.example` documents `MAILBOX_ENCRYPTION_REQUIRED`.
+- `tests/test_mailbox_key.py`: missing / invalid / valid key + the connect route
+  returning 503 without a key (4 tests).
+
 ### Chunk 2 (H4) — SSRF guard on URL knowledge-base ingestion
 - `app/rag/url_guard.py` — `validate_public_url`: allows only http/https and
   only hosts that resolve exclusively to public IPs; rejects loopback, private,

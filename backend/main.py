@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from backend import crypto
 from backend.config import settings
 from backend.logging_config import configure_logging, get_logger
 from backend.rate_limit import limiter
@@ -20,6 +21,10 @@ from backend.services.state_machine import InvalidTransitionError
 
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
+
+# Fail fast on a broken mailbox-encryption setup: an invalid key always aborts
+# startup; a missing key aborts only when MAILBOX_ENCRYPTION_REQUIRED is set.
+crypto.validate_at_startup(required=settings.MAILBOX_ENCRYPTION_REQUIRED)
 
 app = FastAPI(
     title="AI Customer Support SaaS",

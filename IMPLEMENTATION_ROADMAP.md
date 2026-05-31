@@ -181,8 +181,11 @@ audit items are deliberately out of scope for now.*
   rejects loopback / private / link-local / metadata IPs + non-http(s); enforced
   at fetch (each redirect hop, `follow_redirects=False`) and at the `/data/url`
   route. 16 tests. *(Low)*
-- ☐ Chunk 3 (H3) — mailbox encryption key fail-fast + rotation/backup runbook.
-  *(Low)*
+- ☑ Chunk 3 (H3) — mailbox encryption key: fail-fast startup self-check
+  (`crypto.validate_at_startup`; invalid always aborts, missing aborts when
+  `MAILBOX_ENCRYPTION_REQUIRED`), features refuse without a key (`/mailbox/connect`
+  → 503), backup/recovery + rotation runbook
+  (`docs/runbooks/mailbox-encryption-key.md`). 4 tests. *(Low)*
 - ☐ Chunk 4 (H2) — short access-token TTL + real revocation via a per-user
   `token_version` claim (logout-all / reset bumps it). *(Medium)*
 - ☐ Chunk 5 (H1) — token transport hardening: refresh token → httpOnly+Secure+

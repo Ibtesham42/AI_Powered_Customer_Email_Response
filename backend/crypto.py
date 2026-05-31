@@ -15,10 +15,14 @@ from functools import lru_cache
 from cryptography.fernet import Fernet
 
 from backend.config import MissingSettingError, settings
+from backend.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 _KEY_HELP = (
     'Generate one with: python -c "from cryptography.fernet import Fernet; '
-    'print(Fernet.generate_key().decode())"'
+    'print(Fernet.generate_key().decode())". Back it up — see '
+    "docs/runbooks/mailbox-encryption-key.md."
 )
 
 
@@ -37,6 +41,45 @@ def _fernet() -> Fernet:
         raise MissingSettingError(
             f"MAILBOX_ENCRYPTION_KEY is not a valid Fernet key. {_KEY_HELP}"
         ) from exc
+
+
+def is_configured() -> bool:
+    """True iff a valid Fernet key is configured (mailbox features usable)."""
+    try:
+        _fernet()
+        return True
+    except MissingSettingError:
+        return False
+
+
+def require_configured() -> None:
+    """Guard for mailbox features: raise ``MissingSettingError`` (clear message)
+    if the encryption key is missing or invalid, so callers refuse to operate
+    rather than failing deep in encrypt/decrypt."""
+    _fernet()
+
+
+def validate_at_startup(*, required: bool) -> None:
+    """Startup self-check for the mailbox encryption key.
+
+    An *invalid* key always fails fast. A *missing* key fails fast only when
+    ``required`` is set (deployments that use mailboxes); otherwise the app
+    starts with mailbox features disabled and logs a clear warning.
+    """
+    key = settings.MAILBOX_ENCRYPTION_KEY
+    if not key:
+        if required:
+            raise MissingSettingError(
+                "MAILBOX_ENCRYPTION_KEY is required (MAILBOX_ENCRYPTION_REQUIRED "
+                f"is set) but missing. {_KEY_HELP}"
+            )
+        logger.warning(
+            "MAILBOX_ENCRYPTION_KEY not set — mailbox features are disabled until "
+            "it is configured (see docs/runbooks/mailbox-encryption-key.md)."
+        )
+        return
+    _fernet()  # present: validate now so a bad key fails fast, not at first use
+    logger.info("Mailbox encryption key present and valid.")
 
 
 def encrypt(plaintext: str) -> bytes:

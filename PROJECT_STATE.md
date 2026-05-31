@@ -53,7 +53,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   (`app/email/mailbox_connector.py`, App Password impl) + `POST /mailbox/connect`
   (verifies IMAP **and** SMTP before saving) and `GET /mailbox`. The worker
   polls every connected mailbox; the send path replies from the Company's
-  own mailbox. The backend no longer uses a global `EMAIL_USER`.
+  own mailbox. The backend no longer uses a global `EMAIL_USER`. **Key
+  fail-fast (H3):** an invalid `MAILBOX_ENCRYPTION_KEY` aborts startup; a missing
+  key aborts only when `MAILBOX_ENCRYPTION_REQUIRED=true`; without a usable key
+  mailbox features refuse (connect → 503). Backup/recovery + rotation:
+  `docs/runbooks/mailbox-encryption-key.md`.
 - **AI draft queue** — no separate store: the worker drafts replies for
   inbound Messages with `review_status = awaiting_ai`, claimed with
   `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.

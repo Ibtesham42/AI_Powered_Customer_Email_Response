@@ -22,7 +22,11 @@ def build_connector(mailbox: Mailbox) -> AppPasswordConnector:
     """Build a live connector from a stored Mailbox row, decrypting the
     credential. The single place that turns persisted mailbox state into a
     usable connector — used by the worker (polling) and the send path.
+
+    Refuses (``MissingSettingError``) if the encryption key is missing/invalid,
+    rather than failing deep inside ``decrypt``.
     """
+    crypto.require_configured()
     return AppPasswordConnector(
         mailbox.email_address,
         crypto.decrypt(mailbox.encrypted_credential),
@@ -43,13 +47,15 @@ def connect_mailbox(
     """Verify credentials against the live mailbox, then store them (App
     Password encrypted). Re-connecting replaces the Company's existing mailbox.
 
-    Raises ``MailboxError`` if IMAP or SMTP verification fails — nothing is
-    written to the database in that case.
+    Raises ``MailboxError`` if IMAP or SMTP verification fails, or
+    ``MissingSettingError`` if the encryption key is missing/invalid — nothing
+    is written to the database in either case.
     """
-    # Verify first: a failure raises MailboxError before anything is stored.
-    AppPasswordConnector(
-        email_address, app_password, imap_host, smtp_host
-    ).verify()
+    # Refuse before doing any network work if we couldn't encrypt the result.
+    crypto.require_configured()
+
+    # Verify next: a failure raises MailboxError before anything is stored.
+    AppPasswordConnector(email_address, app_password, imap_host, smtp_host).verify()
 
     mailbox = get_mailbox(db, company_id)
     if mailbox is None:

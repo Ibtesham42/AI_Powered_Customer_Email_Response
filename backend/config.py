@@ -47,6 +47,13 @@ class Settings:
     # Optional at startup so the app still runs without mailbox features; the
     # crypto helper fails loudly on first use if it is missing or invalid.
     MAILBOX_ENCRYPTION_KEY: str | None = os.getenv("MAILBOX_ENCRYPTION_KEY")
+    # When true, the app refuses to start without a valid key (set this in any
+    # deployment that uses Company mailboxes). When false (dev default), the app
+    # still starts but mailbox features refuse until a key is configured. An
+    # *invalid* key always fails fast at startup, regardless of this flag.
+    MAILBOX_ENCRYPTION_REQUIRED: bool = os.getenv(
+        "MAILBOX_ENCRYPTION_REQUIRED", "false"
+    ).lower() in {"1", "true", "yes", "on"}
 
     # --- Transactional email (Resend) ---
     # Platform email (password resets), distinct from per-Company support
