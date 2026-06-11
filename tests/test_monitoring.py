@@ -37,6 +37,16 @@ def test_sentry_initialises_when_available(monkeypatch):
     assert calls["tag:process"] == "worker"
 
 
+def test_embedding_device_env_override(monkeypatch):
+    """EMBEDDING_DEVICE pins the model device (single-box GPU-contention fix)."""
+    from app.rag import embeddings
+
+    monkeypatch.setenv("EMBEDDING_DEVICE", "cpu")
+    assert embeddings.resolve_device() == "cpu"
+    monkeypatch.setenv("EMBEDDING_DEVICE", "cuda")
+    assert embeddings.resolve_device() == "cuda"
+
+
 def test_worker_poll_interval_comes_from_settings():
     """The cycle cadence is env-tunable (Neon free tier runs at 600s)."""
     import scripts.email_worker as worker

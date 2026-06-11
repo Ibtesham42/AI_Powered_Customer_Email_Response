@@ -1,4 +1,5 @@
 import logging
+import os
 from functools import lru_cache
 
 import torch
@@ -7,11 +8,27 @@ from sentence_transformers import SentenceTransformer
 logger = logging.getLogger(__name__)
 
 
+def resolve_device() -> str:
+    """The device the embedding model runs on.
+
+    ``EMBEDDING_DEVICE`` (e.g. ``cpu`` or ``cuda``) overrides the
+    cuda-if-available default. The override exists because the api and the
+    worker BOTH load this model (KB ingestion embeds in the api process,
+    retrieval in the worker): two processes creating CUDA contexts at the same
+    moment on a small GPU (e.g. a 4 GB laptop card) crash natively, without a
+    Python traceback. Single-box deploys should pin ``EMBEDDING_DEVICE=cpu``.
+    """
+    override = os.getenv("EMBEDDING_DEVICE", "").strip().lower()
+    if override:
+        return override
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 class EmbeddingModel:
 
     def __init__(self):
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = resolve_device()
 
         self.model = SentenceTransformer(
             "BAAI/bge-base-en-v1.5",

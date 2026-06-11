@@ -70,6 +70,9 @@ via PayPal on a domain later, switch to Cloudflare Tunnel for nicer URLs and
    offline), `ENVIRONMENT=production`, `COOKIE_SECURE=true`,
    `COOKIE_SAMESITE=none`, `CORS_ORIGINS=https://<project>.pages.dev`,
    `APP_BASE_URL=https://<project>.pages.dev`, `POLL_INTERVAL_SECONDS=600`,
+   **`EMBEDDING_DEVICE=cpu`** (mandatory on this box: api + worker both load
+   the BGE model, and two simultaneous CUDA loads on the 4 GB laptop GPU crash
+   the process natively — found by the local production smoke test),
    `RATELIMIT_STORAGE_URI=rediss://…upstash…`, `SENTRY_DSN`,
    `WORKER_HEARTBEAT_URL`, Neon pooler `DATABASE_URL`, `GROQ_API_KEY`,
    `RESEND_API_KEY`. Load it for both processes.

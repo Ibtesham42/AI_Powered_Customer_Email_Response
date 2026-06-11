@@ -8,6 +8,15 @@ each entry references its git commit.
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
 
+### Follow-up — EMBEDDING_DEVICE override (GPU-contention crash fix)
+- Found by the local production smoke test: the api (KB ingestion) and a second
+  process (worker retrieval) loading the BGE model **simultaneously on a 4 GB
+  laptop GPU** kill the process natively — no traceback, ingestion stuck in
+  `processing`. New `resolve_device()` honours `EMBEDDING_DEVICE` (e.g. `cpu`);
+  unset keeps the cuda-if-available default. Single-box deploys must pin
+  `cpu` (documented in `.env.example` + the zero-budget runbook). Re-verified:
+  upload→indexed in ~8 s on CPU with both processes alive. +1 test (**81**).
+
 ### Follow-up — env-tunable worker poll interval (zero-budget pilot prereq)
 - `POLL_INTERVAL_SECONDS` env var (default 10, unchanged behaviour). The Neon
   free-tier deploy sets 600 so the database autosuspends between cycles and
