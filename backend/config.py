@@ -134,6 +134,12 @@ class Settings:
         if origin.strip()
     ]
 
+    # --- Knowledge-base ingestion limits (pilot blocker B-6) ---
+    # Per-file upload cap and per-Company document quota: bound disk, embedding
+    # time, and pgvector growth against oversized or runaway uploads.
+    KB_MAX_FILE_MB: int = int(os.getenv("KB_MAX_FILE_MB", "10"))
+    KB_MAX_DOCS_PER_COMPANY: int = int(os.getenv("KB_MAX_DOCS_PER_COMPANY", "100"))
+
     # --- Escalation engine (Phase 5) ---
     # A fresh AI draft escalates its Ticket to a human when confidence falls
     # below this, or once the thread already has this many outbound replies

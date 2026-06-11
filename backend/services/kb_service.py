@@ -93,6 +93,11 @@ def list_documents(db: Session, company_id: int) -> list[KbDocument]:
     )
 
 
+def count_documents(db: Session, company_id: int) -> int:
+    """How many KB documents a Company has — feeds the per-Company quota."""
+    return db.query(KbDocument).filter(KbDocument.company_id == company_id).count()
+
+
 def _load_document_text(document: KbDocument) -> str:
     """Get the raw text of a KbDocument from its source.
 
@@ -112,15 +117,9 @@ def ingest_document(document_id: int) -> None:
     """
     db = SessionLocal()
     try:
-        document = (
-            db.query(KbDocument)
-            .filter(KbDocument.id == document_id)
-            .first()
-        )
+        document = db.query(KbDocument).filter(KbDocument.id == document_id).first()
         if document is None:
-            logger.error(
-                "KbDocument %s not found — skipping ingest", document_id
-            )
+            logger.error("KbDocument %s not found — skipping ingest", document_id)
             return
         try:
             document.status = KbDocStatus.PROCESSING
@@ -135,9 +134,7 @@ def ingest_document(document_id: int) -> None:
             vectors = get_embedding_model().embed_documents(contents)
 
             # Replace any prior chunks so a re-ingest is idempotent.
-            db.query(KbChunk).filter(
-                KbChunk.document_id == document.id
-            ).delete()
+            db.query(KbChunk).filter(KbChunk.document_id == document.id).delete()
             for index, (content, vector) in enumerate(
                 zip(contents, vectors, strict=True)
             ):
@@ -155,9 +152,7 @@ def ingest_document(document_id: int) -> None:
             document.indexed_at = func.now()
             document.error = None
             db.commit()
-            logger.info(
-                "Indexed KbDocument %s — %d chunks", document.id, len(contents)
-            )
+            logger.info("Indexed KbDocument %s — %d chunks", document.id, len(contents))
         except Exception as exc:
             db.rollback()
             _mark_error(db, document_id, str(exc))
@@ -168,9 +163,7 @@ def ingest_document(document_id: int) -> None:
 
 def _mark_error(db: Session, document_id: int, message: str) -> None:
     """Record an ingestion failure on the KbDocument."""
-    document = (
-        db.query(KbDocument).filter(KbDocument.id == document_id).first()
-    )
+    document = db.query(KbDocument).filter(KbDocument.id == document_id).first()
     if document is None:
         return
     document.status = KbDocStatus.ERROR

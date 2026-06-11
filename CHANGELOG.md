@@ -8,6 +8,17 @@ each entry references its git commit.
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
 
+### Chunk 3 (B-6) — knowledge-base ingestion limits
+- **File-size cap** (`KB_MAX_FILE_MB`, default 10): uploads stream to disk in
+  1 MB chunks and abort with **413** past the cap (partial file removed) —
+  never buffers an oversized body.
+- **Per-Company document quota** (`KB_MAX_DOCS_PER_COMPANY`, default 100),
+  enforced on all three ingestion routes (upload/url/faq) → **409** at the
+  limit. `kb_service.count_documents` added.
+- **FAQ length caps** in the schema (question ≤ 500, answer ≤ 5000 chars) →
+  422; long content belongs in a file upload.
+- `tests/test_kb_limits.py` (5). **79 green.**
+
 ### Chunk 2 (B-5) — send idempotency + retry safety
 - New transient `ReviewStatus.SENDING` (string column — no migration): the send
   route claims the Message with an **atomic compare-and-set**

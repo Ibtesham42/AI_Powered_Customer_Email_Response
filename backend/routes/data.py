@@ -1,5 +1,4 @@
 import os
-import shutil
 from pathlib import Path
 
 from fastapi import (
@@ -16,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.rag.extract import SUPPORTED_EXTENSIONS
 from app.rag.url_guard import UnsafeUrlError, validate_public_url
 from backend.auth.dependencies import get_current_user, require_owner
+from backend.config import settings
 from backend.database import get_db
 from backend.logging_config import get_logger
 from backend.models.enums import KbDocType
@@ -25,6 +25,50 @@ from backend.services import audit_service, kb_service
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+def _enforce_document_quota(db: Session, company_id: int) -> None:
+    """409 when the Company is at its KB-document quota (B-6).
+
+    Applies to every ingestion route (file/url/faq) — bounds disk, embedding
+    work and pgvector growth per tenant.
+    """
+    if kb_service.count_documents(db, company_id) >= settings.KB_MAX_DOCS_PER_COMPANY:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Knowledge-base document limit reached "
+                f"({settings.KB_MAX_DOCS_PER_COMPANY}). Delete unused documents "
+                "or contact support to raise the limit."
+            ),
+        )
+
+
+def _save_upload_capped(upload: UploadFile, file_path: str) -> None:
+    """Stream the upload to disk, aborting with 413 past the size cap.
+
+    Chunked so an oversized body is rejected after cap+1 bytes, not after
+    buffering the whole file; the partial file is removed on rejection.
+    """
+    max_bytes = settings.KB_MAX_FILE_MB * 1024 * 1024
+    written = 0
+    try:
+        with open(file_path, "wb") as buffer:
+            while chunk := upload.file.read(1024 * 1024):
+                written += len(chunk)
+                if written > max_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=(
+                            f"File exceeds the {settings.KB_MAX_FILE_MB} MB "
+                            "knowledge-base upload limit."
+                        ),
+                    )
+                buffer.write(chunk)
+    except HTTPException:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
 
 
 @router.post("/upload")
@@ -56,11 +100,12 @@ def upload_file(
             ),
         )
 
+    _enforce_document_quota(db, company_id)
+
     folder = f"data/users/{company_id}/raw"
     os.makedirs(folder, exist_ok=True)
     file_path = os.path.join(folder, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    _save_upload_capped(file, file_path)
     logger.info("KB file saved: %s", file_path)
 
     document = kb_service.create_document(
@@ -105,6 +150,8 @@ def ingest_url(
     except UnsafeUrlError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    _enforce_document_quota(db, company_id)
+
     document = kb_service.create_document(
         db,
         company_id,
@@ -140,6 +187,7 @@ def ingest_faq(
 ):
     """Add an FAQ entry to the knowledge base (Owner-only)."""
     company_id = user["company_id"]
+    _enforce_document_quota(db, company_id)
 
     document = kb_service.create_faq(
         db, company_id, question=payload.question, answer=payload.answer
