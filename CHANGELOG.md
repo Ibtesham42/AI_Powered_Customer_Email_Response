@@ -3,7 +3,27 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 7 — Production hardening (in progress) · branch `feature/phase-7-hardening`
+## Phase 8 — Pilot readiness · branch `feature/phase-8-pilot-readiness`
+
+Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
+`docs/DEPLOYMENT_STRATEGY.md`. No new features.
+
+### Chunk 1 (B-3) — monitoring: Sentry + worker heartbeat
+- `backend/monitoring.py`: optional Sentry init, called by both processes
+  (`main.py` tags `process=api`, the worker `process=worker`). DSN-gated
+  (`SENTRY_DSN`); **fail-soft guarded import** — a missing/broken sentry-sdk
+  logs a warning and never blocks startup. Errors only (`traces_sample_rate=0`),
+  `send_default_pii=False` so customer email content stays out of the tracker.
+- Worker dead-man switch: `_ping_heartbeat()` GETs `WORKER_HEARTBEAT_URL`
+  (e.g. Healthchecks.io) after each successful cycle; silence triggers the
+  external alert. Best-effort — ping failures are logged, never disruptive.
+- `sentry-sdk==2.20.0` pinned in requirements; `SENTRY_DSN` +
+  `WORKER_HEARTBEAT_URL` documented in `.env.example`.
+- `tests/test_monitoring.py` (6): no-DSN no-op, missing-SDK fail-soft,
+  init params (env/PII/tracing/process tag), heartbeat no-op/ping/swallow.
+  **69 green.**
+
+## Phase 7 — Production hardening (merged) · was branch `feature/phase-7-hardening`
 
 Closing the Critical + High blockers from the production-readiness audit.
 

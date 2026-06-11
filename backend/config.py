@@ -77,6 +77,14 @@ class Settings:
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # --- Monitoring (pilot blocker B-3) ---
+    # Sentry error tracking — optional; unset disables it (see
+    # backend/monitoring.py). One DSN serves both processes, tagged api/worker.
+    SENTRY_DSN: str | None = os.getenv("SENTRY_DSN") or None
+    # Dead-man-switch URL (e.g. Healthchecks.io) the worker pings after each
+    # successful cycle; an alert fires when it goes silent. Unset disables.
+    WORKER_HEARTBEAT_URL: str | None = os.getenv("WORKER_HEARTBEAT_URL") or None
+
     # --- Rate limiting (slowapi) ---
     # Storage backend for request rate limits. Unset => in-memory (per-process),
     # which is wrong once more than one instance runs (each gets its own

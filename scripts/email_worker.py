@@ -14,8 +14,10 @@ import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import httpx  # noqa: E402
 from sqlalchemy import func  # noqa: E402
 
+from backend import monitoring  # noqa: E402
 from backend.config import settings  # noqa: E402
 from backend.database import SessionLocal  # noqa: E402
 from backend.logging_config import configure_logging, get_logger  # noqa: E402
@@ -70,6 +72,21 @@ def _interruptible_sleep(seconds: float) -> None:
     deadline = time.monotonic() + seconds
     while not _shutdown and time.monotonic() < deadline:
         time.sleep(min(1.0, deadline - time.monotonic()))
+
+
+def _ping_heartbeat() -> None:
+    """Dead-man switch: ping WORKER_HEARTBEAT_URL after a successful cycle.
+
+    A monitoring service (e.g. Healthchecks.io) alerts when the ping goes
+    silent — covering the worker, which has no HTTP probe of its own. Best
+    effort: a failed ping is logged and never disturbs the worker.
+    """
+    if not settings.WORKER_HEARTBEAT_URL:
+        return
+    try:
+        httpx.get(settings.WORKER_HEARTBEAT_URL, timeout=5)
+    except Exception:
+        logger.warning("Heartbeat ping failed (non-fatal)", exc_info=True)
 
 
 def _ingest_email(db, company_id: int, e: dict) -> None:
@@ -234,6 +251,9 @@ def run() -> None:
     signal.signal(signal.SIGTERM, _request_shutdown)
     signal.signal(signal.SIGINT, _request_shutdown)
 
+    # Error tracking (optional — no-op without SENTRY_DSN; never blocks startup).
+    monitoring.init_monitoring(process="worker")
+
     logger.info(
         "AI worker started (poll every %ss, max %s drafts/cycle)",
         POLL_INTERVAL_SECONDS,
@@ -254,6 +274,8 @@ def run() -> None:
             _interruptible_sleep(CRASH_BACKOFF_SECONDS)
             continue
 
+        # Cycle completed without a top-level failure — tell the dead-man switch.
+        _ping_heartbeat()
         _interruptible_sleep(POLL_INTERVAL_SECONDS)
 
     logger.info("AI worker stopped cleanly")
