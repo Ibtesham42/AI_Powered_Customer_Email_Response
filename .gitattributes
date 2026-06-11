@@ -1,0 +1,5 @@
+# Shell scripts must stay LF: git-on-Windows checks files out with CRLF by
+# default, and `bash start.sh` inside a Linux container chokes on \r line
+# endings (the HF Space entrypoint would fail at first boot).
+*.sh text eol=lf
+Caddyfile text eol=lf
