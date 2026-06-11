@@ -3,7 +3,70 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 7 — Production hardening (in progress) · branch `feature/phase-7-hardening`
+## Phase 8 — Pilot readiness · branch `feature/phase-8-pilot-readiness`
+
+Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
+`docs/DEPLOYMENT_STRATEGY.md`. No new features.
+
+### Chunk 4 — production compose + Caddy/TLS
+- `docker-compose.prod.yml` (standalone, not an overlay — compose can't remove
+  the local `db` service): `caddy` (TLS, **only** published ports 80/443) →
+  internal `api` + `worker` + `redis` + one-shot `migrate`, database on managed
+  Postgres (Neon) via the server's `.env`. Worker pool right-sized (2/2);
+  api/worker gate on `migrate` success; everything `restart: unless-stopped`.
+- `Caddyfile`: automatic Let's Encrypt for `${API_DOMAIN}`, certs persisted in
+  the `caddy_data` volume; 64 MB request-body cap for KB uploads. App-level
+  security headers (HSTS in prod) not duplicated in the proxy.
+- `.env.example` gains `API_DOMAIN`; both files excluded from the image build
+  context. YAML + structure validated (no `db`, api unpublished, caddy 80/443);
+  a real `docker compose config` + boot happens on the server (no local Docker).
+- Runbook: "Production stack on a VPS" section in `docs/runbooks/deployment.md`.
+
+### Chunk 3 (B-6) — knowledge-base ingestion limits
+- **File-size cap** (`KB_MAX_FILE_MB`, default 10): uploads stream to disk in
+  1 MB chunks and abort with **413** past the cap (partial file removed) —
+  never buffers an oversized body.
+- **Per-Company document quota** (`KB_MAX_DOCS_PER_COMPANY`, default 100),
+  enforced on all three ingestion routes (upload/url/faq) → **409** at the
+  limit. `kb_service.count_documents` added.
+- **FAQ length caps** in the schema (question ≤ 500, answer ≤ 5000 chars) →
+  422; long content belongs in a file upload.
+- `tests/test_kb_limits.py` (5). **79 green.**
+
+### Chunk 2 (B-5) — send idempotency + retry safety
+- New transient `ReviewStatus.SENDING` (string column — no migration): the send
+  route claims the Message with an **atomic compare-and-set**
+  (`UPDATE … WHERE review_status='reviewed'`), so exactly one request can send.
+  Duplicate clicks, concurrent requests, and re-sends of a SENT message get
+  **409** instead of double-emailing the Customer.
+- **SMTP failure releases the claim** (SENDING → REVIEWED) and returns **502**
+  with the draft back in review — the agent's retry is safe because nothing was
+  delivered. Deliberately **no automatic retry**: an ambiguous SMTP timeout may
+  have delivered, and a duplicate customer email is worse than a manual retry.
+- All request validation (ticket/customer/mailbox/reply text) happens *before*
+  the claim, so a bad request can never strand a Message in SENDING. A crash
+  between SMTP success and the DB commit leaves a visible `sending` state for a
+  human to resolve (no silent auto-resend).
+- State machine: REVIEWED→SENDING, SENDING→{SENT, REVIEWED}.
+- `tests/test_send_idempotency.py` (5): single delivery, duplicate 409,
+  concurrent-claim 409, failure-then-safe-retry, unreviewed 409. **74 green.**
+
+### Chunk 1 (B-3) — monitoring: Sentry + worker heartbeat
+- `backend/monitoring.py`: optional Sentry init, called by both processes
+  (`main.py` tags `process=api`, the worker `process=worker`). DSN-gated
+  (`SENTRY_DSN`); **fail-soft guarded import** — a missing/broken sentry-sdk
+  logs a warning and never blocks startup. Errors only (`traces_sample_rate=0`),
+  `send_default_pii=False` so customer email content stays out of the tracker.
+- Worker dead-man switch: `_ping_heartbeat()` GETs `WORKER_HEARTBEAT_URL`
+  (e.g. Healthchecks.io) after each successful cycle; silence triggers the
+  external alert. Best-effort — ping failures are logged, never disruptive.
+- `sentry-sdk==2.20.0` pinned in requirements; `SENTRY_DSN` +
+  `WORKER_HEARTBEAT_URL` documented in `.env.example`.
+- `tests/test_monitoring.py` (6): no-DSN no-op, missing-SDK fail-soft,
+  init params (env/PII/tracing/process tag), heartbeat no-op/ping/swallow.
+  **69 green.**
+
+## Phase 7 — Production hardening (merged) · was branch `feature/phase-7-hardening`
 
 Closing the Critical + High blockers from the production-readiness audit.
 

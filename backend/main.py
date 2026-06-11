@@ -5,7 +5,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from backend import crypto
+from backend import crypto, monitoring
 from backend.config import settings
 from backend.database import engine
 from backend.logging_config import configure_logging, get_logger
@@ -23,6 +23,9 @@ from backend.services.state_machine import InvalidTransitionError
 
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
+
+# Error tracking (optional — no-op without SENTRY_DSN; never blocks startup).
+monitoring.init_monitoring(process="api")
 
 # Fail fast on a broken mailbox-encryption setup: an invalid key always aborts
 # startup; a missing key aborts only when MAILBOX_ENCRYPTION_REQUIRED is set.

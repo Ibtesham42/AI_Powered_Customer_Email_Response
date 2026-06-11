@@ -212,6 +212,21 @@ H2, H1, C2) done; awaiting merge to `main`.*
   pgvector job sketch. `docs/runbooks/deployment.md`. Built by the
   devops/backend/database/security specialist agents. *(High)*
 
+## Phase 8 — Pilot readiness  ☑ chunks 1–4 done (on `feature/phase-8-pilot-readiness`)
+*Goal: close the pilot-deployment blockers from `docs/LAUNCH_READINESS.md`
+ahead of the first real company (strategy: `docs/DEPLOYMENT_STRATEGY.md`).*
+
+- ☑ Chunk 1 (B-3) — monitoring: optional fail-soft Sentry init (api + worker,
+  no PII) + worker dead-man heartbeat (`WORKER_HEARTBEAT_URL`). 6 tests.
+- ☑ Chunk 2 (B-5) — send idempotency: atomic REVIEWED→SENDING claim (dupes →
+  409), SMTP failure releases the claim (502, safe retry). 5 tests.
+- ☑ Chunk 3 (B-6) — KB limits: streamed file-size cap (413), per-Company doc
+  quota (409), FAQ length caps (422). 5 tests. **79 green.**
+- ☑ Chunk 4 — `docker-compose.prod.yml` + `Caddyfile`: single-VPS prod stack
+  (Caddy TLS only public service, Neon DB, internal api/worker/redis).
+- ☐ Deploy: provision VPS/Neon/Pages + monitoring accounts, then the staging
+  checklist incl. the real inbound roundtrip (B-4). Infra work, not code.
+
 ## Cross-cutting (folded into Phase 7 above)
 
 - ◐ Docker Compose / worker resilience / Redis rate-limit / readiness → Phase 7

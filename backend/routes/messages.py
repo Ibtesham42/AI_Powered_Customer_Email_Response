@@ -5,6 +5,7 @@ from backend.auth.dependencies import get_current_user
 from backend.database import get_db
 from backend.logging_config import get_logger
 from backend.models.enums import MessageDirection, ReviewStatus, TicketStatus
+from backend.models.message import Message
 from backend.models.schemas import DraftUpdate, RejectRequest
 from backend.serializers import message_dict
 from backend.services import (
@@ -107,13 +108,18 @@ def send_reply(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Send the reviewed reply to the Customer over SMTP."""
-    message = _require_message(db, user["company_id"], message_id)
-    if message.review_status != ReviewStatus.REVIEWED:
-        raise HTTPException(
-            status_code=409, detail="Message must be reviewed before sending"
-        )
+    """Send the reviewed reply to the Customer over SMTP.
 
+    Idempotent against duplicates: exactly one request can claim the Message
+    (atomic REVIEWED -> SENDING compare-and-set), so a double-click or a retry
+    of an already-delivered send gets 409 instead of emailing the Customer
+    twice. An SMTP failure reverts the claim to REVIEWED (502) so the agent can
+    retry safely — nothing was delivered.
+    """
+    message = _require_message(db, user["company_id"], message_id)
+
+    # Validate everything BEFORE claiming, so a bad request can't strand the
+    # Message in SENDING.
     ticket = ticket_service.get_ticket(db, user["company_id"], message.ticket_id)
     customer = (
         ticket_service.get_customer(db, user["company_id"], ticket.customer_id)
@@ -135,13 +141,50 @@ def send_reply(
             detail="No mailbox connected — connect one at /mailbox/connect",
         )
 
-    subject = f"Re: {ticket.subject}" if ticket.subject else "Re: your enquiry"
-    mailbox_service.build_connector(mailbox).send(
-        to_email=customer.email,
-        subject=subject,
-        body=reply_text,
-        in_reply_to=message.message_id,
+    # Atomic claim: only a REVIEWED Message can move to SENDING, and only one
+    # request wins the UPDATE. Everyone else (concurrent click, re-send of a
+    # SENT message) sees rowcount 0 -> 409.
+    claimed = (
+        db.query(Message)
+        .filter(
+            Message.id == message.id,
+            Message.company_id == user["company_id"],
+            Message.review_status == ReviewStatus.REVIEWED,
+        )
+        .update(
+            {Message.review_status: ReviewStatus.SENDING},
+            synchronize_session=False,
+        )
     )
+    db.commit()
+    if not claimed:
+        db.refresh(message)
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Message is not ready to send "
+                f"(current status: {message.review_status})"
+            ),
+        )
+    db.refresh(message)
+
+    subject = f"Re: {ticket.subject}" if ticket.subject else "Re: your enquiry"
+    try:
+        mailbox_service.build_connector(mailbox).send(
+            to_email=customer.email,
+            subject=subject,
+            body=reply_text,
+            in_reply_to=message.message_id,
+        )
+    except Exception as exc:
+        # Nothing was delivered — release the claim so the agent can retry.
+        ticket_service.transition_message(db, message, ReviewStatus.REVIEWED)
+        logger.warning("Send failed for message %s: %s", message.id, exc)
+        raise HTTPException(
+            status_code=502,
+            detail="Sending failed — the reply was not delivered. "
+            "The draft is back in review; retry when the mailbox is reachable.",
+        ) from exc
 
     # The sent reply becomes an outbound Message on the Ticket.
     ticket_service.add_message(

@@ -30,6 +30,7 @@ psycopg2-binary
 slowapi==0.1.9
 redis==5.0.8  # shared rate-limit storage for multi-instance deploys (slowapi)
 resend==2.30.1  # transactional email (password-reset)
+sentry-sdk==2.20.0  # error monitoring (optional at runtime — see backend/monitoring.py)
 pgvector==0.4.2  # vector(768) column type for RAG embeddings
 # Pinned: the test suite drives routes over httpx.ASGITransport, whose API
 # changed at 0.28 (see CLAUDE.md). A clean CI install resolving a newer httpx

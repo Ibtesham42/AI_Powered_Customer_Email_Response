@@ -102,8 +102,9 @@ Inbound email (email_worker.py polling each Company's mailbox over IMAP)
 
 Two state machines drive the domain: the **Ticket** lifecycle
 (`OPEN -> PENDING -> RESOLVED -> CLOSED`, plus an escalated flag) and the
-per-**Message** review flow (`AWAITING_AI -> DRAFTED -> REVIEWED -> SENT`),
-both validated in `backend/services/state_machine.py`.
+per-**Message** review flow (`AWAITING_AI -> DRAFTED -> REVIEWED -> SENDING ->
+SENT`; `SENDING` is a transient atomic send-claim that reverts to `REVIEWED` on
+SMTP failure), both validated in `backend/services/state_machine.py`.
 
 ### Multi-tenancy
 

@@ -77,6 +77,14 @@ class Settings:
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # --- Monitoring (pilot blocker B-3) ---
+    # Sentry error tracking — optional; unset disables it (see
+    # backend/monitoring.py). One DSN serves both processes, tagged api/worker.
+    SENTRY_DSN: str | None = os.getenv("SENTRY_DSN") or None
+    # Dead-man-switch URL (e.g. Healthchecks.io) the worker pings after each
+    # successful cycle; an alert fires when it goes silent. Unset disables.
+    WORKER_HEARTBEAT_URL: str | None = os.getenv("WORKER_HEARTBEAT_URL") or None
+
     # --- Rate limiting (slowapi) ---
     # Storage backend for request rate limits. Unset => in-memory (per-process),
     # which is wrong once more than one instance runs (each gets its own
@@ -125,6 +133,12 @@ class Settings:
         ).split(",")
         if origin.strip()
     ]
+
+    # --- Knowledge-base ingestion limits (pilot blocker B-6) ---
+    # Per-file upload cap and per-Company document quota: bound disk, embedding
+    # time, and pgvector growth against oversized or runaway uploads.
+    KB_MAX_FILE_MB: int = int(os.getenv("KB_MAX_FILE_MB", "10"))
+    KB_MAX_DOCS_PER_COMPANY: int = int(os.getenv("KB_MAX_DOCS_PER_COMPANY", "100"))
 
     # --- Escalation engine (Phase 5) ---
     # A fresh AI draft escalates its Ticket to a human when confidence falls

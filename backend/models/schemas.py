@@ -1,6 +1,7 @@
 from pydantic import (
     BaseModel,
     EmailStr,
+    Field,
     HttpUrl,
     field_validator,
     model_validator,
@@ -102,10 +103,14 @@ class UrlIngestRequest(BaseModel):
 
 
 class FaqIngestRequest(BaseModel):
-    """Body for adding an FAQ entry to the knowledge base."""
+    """Body for adding an FAQ entry to the knowledge base.
 
-    question: str
-    answer: str
+    Length caps (B-6) bound a single FAQ's embedding work and storage; a long
+    document belongs in a file upload, not an FAQ entry.
+    """
+
+    question: str = Field(max_length=500)
+    answer: str = Field(max_length=5000)
 
     @field_validator("question", "answer")
     @classmethod

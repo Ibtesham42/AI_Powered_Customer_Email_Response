@@ -55,6 +55,31 @@ Compose overrides for the app services:
 Postgres data persists in the named `pgdata` volume. `docker compose down`
 keeps it; `docker compose down -v` wipes it.
 
+## Production stack on a VPS (docker-compose.prod.yml)
+
+The pilot/production topology (see `docs/DEPLOYMENT_STRATEGY.md`): one VPS
+running `caddy` (TLS, the only published ports 80/443) + `api` (internal) +
+`worker` + `redis` + a one-shot `migrate`, with the database on **managed
+Postgres (Neon)** — there is no `db` service.
+
+```bash
+# On the server, with .env in place (chmod 600; includes API_DOMAIN and the
+# production values listed at the top of docker-compose.prod.yml):
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml logs -f api   # watch startup
+curl https://$API_DOMAIN/health/ready                    # external readiness
+```
+
+Caddy obtains/renews the Let's Encrypt certificate for `API_DOMAIN`
+automatically (DNS must already point at the host). Certificates persist in the
+`caddy_data` volume. Rollback = redeploy the previous image tag and `up -d`
+again; nothing stateful lives on the box except certificates (the DB is managed
+— Neon PITR).
+
+> Validation note: the file is YAML-validated and structure-checked in the repo,
+> but `docker compose config` and a real boot must run on the server (no Docker
+> on the dev machine) — that is step one of the staging checklist.
+
 ## Health & readiness probes
 
 | Endpoint            | Meaning   | Checks DB? | Use for |

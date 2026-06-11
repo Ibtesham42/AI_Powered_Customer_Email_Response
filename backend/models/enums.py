@@ -23,6 +23,10 @@ class ReviewStatus(StrEnum):
     AWAITING_AI = "awaiting_ai"
     DRAFTED = "drafted"
     REVIEWED = "reviewed"
+    # Transient send claim: exactly one request may move REVIEWED -> SENDING
+    # (atomic compare-and-set), so concurrent/duplicate sends can't double-
+    # deliver. Reverts to REVIEWED on SMTP failure; advances to SENT on success.
+    SENDING = "sending"
     SENT = "sent"
     NOT_APPLICABLE = "not_applicable"  # e.g. outbound messages
 
