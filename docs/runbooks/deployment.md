@@ -102,6 +102,48 @@ This keeps schema changes out of app startup and makes deploys ordered and
 rollback-able (migrations are forward-compatible; the previous revision keeps
 serving until the new one is healthy).
 
+## Viewing CI results & build logs
+
+CI runs on **every push and pull request**. The workflow (`.github/workflows/ci.yml`,
+named **CI**) has two parallel jobs:
+
+- **lint + test (SQLite)** — pytest is the merge gate; ruff/black/mypy/pip-audit
+  are non-blocking.
+- **docker build + smoke** — builds the image from `./Dockerfile` and runs no-infra
+  runtime smokes. **This job blocks on build failure** — if the container can't
+  build (or the smoke `docker run` checks fail), the workflow goes red.
+
+### In the GitHub UI
+
+1. Repo → **Actions** tab → **CI** workflow (left sidebar) for the run history.
+2. Click a run (by commit message / PR) to see both jobs and their pass/fail status.
+3. Click **docker build + smoke** to open its log. Expand:
+   - **Build image** — the full `docker build` output (cache hits, each layer,
+     and the failing `RUN`/`COPY` line if the build broke).
+   - **Smoke — config imports / alembic wired / app imports** — the three
+     `docker run` gates; a non-zero exit here fails the job.
+
+### Reading a build failure
+
+A failed **Build image** step ends with the offending Docker instruction and its
+error (e.g. a pip resolution error or a missing file). A failed **Smoke** step
+means the image built but the container couldn't run the check — read the Python
+traceback / exit code in that step's log. Both turn the run red and block the PR.
+
+### `gh` CLI equivalents
+
+If you have the GitHub CLI:
+
+```bash
+gh run list --workflow=CI                 # recent CI runs + status
+gh run view <run-id>                      # job summary for a run
+gh run view <run-id> --log                # full logs (pipe to grep/less)
+gh run view <run-id> --job=<job-id> --log # just the docker-build job's logs
+gh run watch <run-id>                     # live-tail an in-progress run
+```
+
+`gh run list` prints the run ids; `gh run view` lists the job ids within a run.
+
 ## Hardening follow-ups (out of C2 scope)
 
 Tracked for a later pass — flagged by the C2 security review, deliberately not
