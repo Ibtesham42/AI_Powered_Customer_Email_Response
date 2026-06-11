@@ -57,21 +57,23 @@ process" rule is intact). Redis moves to Upstash (`rediss://`) because a Space
 is one container. `docker-compose.prod.yml` stays the artifact for the
 VPS/Hetzner path.
 
-Small repo additions needed (not yet implemented): a Space variant of the
-image (reuse the existing Dockerfile stages + `start.sh` launching both
-processes; HF reads `app_port: 8000` from the Space README metadata) — no
-application code changes.
+The deployment files exist in **`deploy/hf-space/`** (Space Dockerfile
+mirroring the root one + `start.sh` + Space README with metadata and the full
+secrets table) — no application code changes. Deploy by publishing the
+`hf-space` branch (those files copied to the repo root) to the Space remote;
+exact commands are in `deploy/hf-space/README.md`.
 
 ## 2. Setup sequence
 
 1. **Accounts (no card):** huggingface.co, Upstash, and (if not already)
    Neon / Cloudflare / Groq / Resend / Sentry / Healthchecks.io / UptimeRobot.
-2. **Day-one feasibility check (do this FIRST):** create a throwaway Docker
-   Space and verify **outbound IMAP (993) + SMTP (465)** to Gmail work from
-   inside it (a 10-line probe script). HF allows general egress, but SMTP is
-   the classic thing platforms block — if it is blocked, this plan is dead and
-   the fallback (§ "own PC + tunnel") applies. Everything else only matters if
-   this passes.
+2. **Day-one feasibility check (do this FIRST):** deploy the ready-made probe
+   in **`deploy/hf-probe/`** (3 files, stdlib-only, builds in ~1 min) to a
+   throwaway Docker Space. It verifies **outbound IMAP (993) + SMTP (465)** to
+   Gmail and serves a JSON `PASS`/`FAIL` verdict — interpretation guide in its
+   README. HF allows general egress, but SMTP is the classic thing platforms
+   block — if FAIL, this plan is dead and the fallback (§ "own PC + tunnel")
+   applies. Everything else only matters if this passes.
 3. **Upstash Redis:** create a free database → copy the `rediss://` URL
    (treat as a secret) → it becomes `RATELIMIT_STORAGE_URI`.
 4. **Create the real Space** (Docker SDK, private repo or mirror of this one
