@@ -69,9 +69,13 @@ added for TLS.
 
 ## 3. Free-tier-only option ($0/mo + domain)
 
-> **Now the active pilot plan** — full architecture, setup guide, limits, and
-> the migration path back to Hetzner live in
-> `docs/runbooks/zero-budget-pilot.md` (budget constraint, 2026-06-11).
+> **Now the active pilot plan** — and constraint-updated 2026-06-11: the user
+> has **no credit card**, which rules out Oracle Always Free (and Fly/GCP/
+> Railway/Koyeb/Northflank). The current $0 plan is a **Hugging Face Docker
+> Space** (free CPU tier, 2 vCPU/16 GB, no card) + Upstash Redis free + Neon +
+> Cloudflare Pages. Full architecture, setup, compromises, and the Hetzner
+> migration path: `docs/runbooks/zero-budget-pilot.md`. The Oracle notes below
+> are retained for reference only.
 
 **Oracle Cloud Always Free** is the only free compute that fits the RAM floor:
 4 ARM Ampere cores + 24 GB RAM, free forever. Run the whole compose stack on it;

@@ -1,140 +1,139 @@
-# Zero-Budget Pilot Deployment ($0/month)
+# Zero-Budget Pilot Deployment ($0/month, no credit card)
 
-_Plan for a validation/pilot launch with no hosting spend. Supersedes the
-Hetzner recommendation in `docs/DEPLOYMENT_STRATEGY.md` **only while budget is
-$0** — the Hetzner path remains the target once ~$9/mo is acceptable, and §5
-makes that switch a 30-minute, zero-data-migration move._
+_Plan for a validation/pilot launch with no hosting spend **and no credit
+card** (constraint added 2026-06-11 — this supersedes the earlier Oracle
+Always Free plan in this file; Oracle requires a card at signup). The Hetzner
+path in `docs/DEPLOYMENT_STRATEGY.md` remains the upgrade once ~$9/mo is
+acceptable; §5 keeps that switch a DNS-flip._
 
-## 1. Architecture (all free tiers)
+## Why most providers are out
+
+The app needs ~**1.5–2 GB RAM per process** (api *and* worker import
+torch + the BGE embedding model) and an **always-on worker**. Combined with
+"no card":
+
+| Provider | No-card free tier? | Verdict |
+|---|---|---|
+| Oracle Always Free | ❌ card for identity | out |
+| Fly.io | ❌ card at signup | out |
+| Railway | ❌ one-time trial, then card | out |
+| Koyeb | ❌ card verification (and 512 MB anyway) | out |
+| Northflank | ❌ card verification | out |
+| Render | ✅ no card — **but** 512 MB (torch OOMs) + free services sleep + workers are paid-only | out for this codebase |
+| GCP / AWS / Azure | ❌ card | out |
+| PythonAnywhere / Replit | ✅/✅ — but tiny CPU/RAM, no Docker, no real worker | out |
+| **Hugging Face Spaces (Docker)** | ✅ **no card; free CPU Space = 2 vCPU / 16 GB RAM** | ✅ **the pick** |
+| **Own PC + Cloudflare Tunnel** | ✅ no card (but a named tunnel needs a domain, ~$10/yr) | fallback |
+
+Neon, Cloudflare Pages, Upstash Redis, Groq free, Resend free, Sentry,
+UptimeRobot, Healthchecks.io — all usable **without a card**. ✅
+
+## 1. Architecture
 
 ```
- browser ─▶ Cloudflare Pages (SPA)                                $0
-               │  app domain (see "domain" note)
+ browser ─▶ Cloudflare Pages (SPA, <project>.pages.dev or app.<domain>)   $0
+               │  cross-site → COOKIE_SAMESITE=none + COOKIE_SECURE=true
                ▼
- Oracle Cloud Always Free — VM.Standard.A1.Flex (ARM)             $0
- 4 OCPU · 24 GB RAM · Ubuntu 24.04 aarch64 · 200 GB storage
- ┌──────────────────────────────────────────────┐
- │ docker-compose.prod.yml (built ON the box):  │
- │  caddy (TLS, 80/443) → api (uvicorn)         │──▶ Neon Postgres
- │  worker (IMAP poll + AI queue)               │    + pgvector    $0
- │  redis (rate limiting)                       │──▶ Groq free tier $0
- └──────────────────────────────────────────────┘──▶ Resend free   $0
- Monitoring: Sentry free · UptimeRobot free · Healthchecks.io free $0
+ Hugging Face Docker Space (free CPU: 2 vCPU / 16 GB / ~50 GB ephemeral)  $0
+ https://<user>-<space>.hf.space  (TLS provided by HF)
+ ┌────────────────────────────────────────────┐
+ │ ONE container, TWO processes (start.sh):   │──▶ Neon Postgres+pgvector $0
+ │   uvicorn backend.main:app  (api, :8000)   │──▶ Upstash Redis (TLS)    $0
+ │   python scripts/email_worker.py (worker)  │──▶ Groq free · Resend free$0
+ └────────────────────────────────────────────┘
+ Monitoring: Sentry · Healthchecks.io · UptimeRobot (pings ALSO keep the
+ Space awake — it sleeps after 48 h without HTTP traffic)                 $0
 ```
 
-Design principle: **all state lives OFF the free VM.** The database is Neon,
-certificates re-issue automatically, the image rebuilds from git. If Oracle
-reclaims the instance (the #1 risk), nothing is lost — re-provision and go.
+Same principle as before: **all state lives off the compute** (Neon for data,
+Upstash for counters, HF rebuilds the image from the repo). The Space's disk is
+ephemeral — uploaded raw KB files vanish on restart, but the embedded chunks
+live in pgvector, so retrieval is unaffected (re-upload only to re-ingest).
 
-Why this exact split:
-- **Oracle A1.Flex** is the only free compute that clears the app's ~2 GB/process
-  RAM floor (torch + BGE in both api and worker). 24 GB is 3× more than the
-  paid Hetzner pick.
-- **Neon stays** (free tier) rather than self-hosting Postgres on the VM:
-  durability must not depend on a reclaimable freebie.
-- **Redis on-box** via the existing compose service: rate-limit counters are
-  disposable state.
-- The repo's `docker-compose.prod.yml` + `Caddyfile` are reused as-is.
+What changes vs. the repo's compose model: the api and worker run as **two
+processes in one container** via a small `start.sh` (a deployment adaptation —
+they remain separate processes; the "never run the worker loop inside the API
+process" rule is intact). Redis moves to Upstash (`rediss://`) because a Space
+is one container. `docker-compose.prod.yml` stays the artifact for the
+VPS/Hetzner path.
 
-### Prerequisite tweaks (small, config-level — do before deploying)
-1. ✅ **Worker poll interval is env-tunable** (`POLL_INTERVAL_SECONDS`, default
-   10). On the free tier set **`POLL_INTERVAL_SECONDS=600`** in the server's
-   `.env` — see the Neon math in §4.
-2. **Domain decision** (affects cookies):
-   - *Recommended (~$10/yr, not monthly):* one domain on Cloudflare —
-     `app.domain.com` (Pages) + `api.domain.com` (VM). Same-site → the existing
-     `SameSite=lax` refresh cookie works unchanged.
-   - *Strictly $0:* SPA on `<project>.pages.dev`, API on a free DuckDNS
-     subdomain. These are **cross-site**, so set `COOKIE_SAMESITE=none` (+
-     `COOKIE_SECURE=true`, already required) and put the pages.dev origin in
-     `CORS_ORIGINS`. Supported by the existing config; slightly weaker CSRF
-     posture and looks less credible to pilot users.
+Small repo additions needed (not yet implemented): a Space variant of the
+image (reuse the existing Dockerfile stages + `start.sh` launching both
+processes; HF reads `app_port: 8000` from the Space README metadata) — no
+application code changes.
 
-## 2. Step-by-step setup
+## 2. Setup sequence
 
-1. **Oracle account.** Sign up for Oracle Cloud Free Tier (card required for
-   identity; not charged). Pick a **home region with A1 capacity** (less
-   popular regions fare better — capacity errors at instance-create are common;
-   retry or script retries).
-   *Strongly recommended:* upgrade the account to **Pay-As-You-Go** while using
-   only Always-Free shapes — still $0, but removes the idle-reclamation policy
-   and improves capacity access. Set a **budget alert at $1** as a tripwire.
-2. **Create the VM.** Shape `VM.Standard.A1.Flex`, 4 OCPU / 24 GB, Ubuntu 24.04
-   (aarch64), 100 GB boot volume (within the free 200 GB), SSH key auth.
-3. **Open the network.** In the VCN security list: allow TCP 80 + 443 ingress.
-   **Oracle gotcha:** the Ubuntu images also ship host iptables REJECT rules —
-   `sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT` (and 443), then persist
-   (`netfilter-persistent save`). Both layers must allow traffic.
-4. **Harden + Docker.** ufw allow 22/80/443; fail2ban; unattended-upgrades;
-   install Docker Engine + compose plugin (arm64 packages are standard).
-5. **DNS.** Point `api.domain.com` (or the DuckDNS name) at the VM's public IP.
-6. **Secrets.** `git clone` the repo; create `.env` (chmod 600) per the
-   checklist at the top of `docker-compose.prod.yml`, including `API_DOMAIN`,
-   `ENVIRONMENT=production`, `COOKIE_SECURE=true`, `SENTRY_DSN`,
-   `WORKER_HEARTBEAT_URL`, `POLL_INTERVAL_SECONDS=600`, and the Neon URL.
-   Back up `MAILBOX_ENCRYPTION_KEY` offline first.
-7. **Build & start (native arm64 build, ~15–30 min first time):**
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d --build
-   curl https://api.domain.com/health/ready   # expect {"status":"ready"}
-   ```
-   The aarch64 torch wheel is CPU-only by nature — the ARM image is actually
-   *slimmer* than the amd64 one. **Known risk:** legacy-path deps
-   (`bitsandbytes`, `tf-keras`, `faiss-cpu`) may lack aarch64 wheels for the
-   resolved versions; they are used only by the standalone Streamlit apps, not
-   the backend — if the build fails on one, removing/conditioning that legacy
-   dep is the fix (small, justified change).
-8. **Frontend.** Cloudflare Pages → connect the GitHub repo, root `frontend/`,
-   build `npm ci && npm run build`, output `dist/`,
-   `VITE_API_BASE_URL=https://api.domain.com`.
-9. **Monitoring accounts** (all free): Sentry project → `SENTRY_DSN`;
-   Healthchecks.io check → `WORKER_HEARTBEAT_URL`; UptimeRobot monitors on
-   `/health` + `/health/ready`. Restart compose after env changes.
-10. **Verify** with the staging checklist (`runbooks/staging-deployment.md`):
-    cookie login flow, rate-limit 429, KB upload→indexed, and the **real
-    inbound→draft→approve→send roundtrip** on a dedicated pilot mailbox (B-4).
+1. **Accounts (no card):** huggingface.co, Upstash, and (if not already)
+   Neon / Cloudflare / Groq / Resend / Sentry / Healthchecks.io / UptimeRobot.
+2. **Day-one feasibility check (do this FIRST):** create a throwaway Docker
+   Space and verify **outbound IMAP (993) + SMTP (465)** to Gmail work from
+   inside it (a 10-line probe script). HF allows general egress, but SMTP is
+   the classic thing platforms block — if it is blocked, this plan is dead and
+   the fallback (§ "own PC + tunnel") applies. Everything else only matters if
+   this passes.
+3. **Upstash Redis:** create a free database → copy the `rediss://` URL
+   (treat as a secret) → it becomes `RATELIMIT_STORAGE_URI`.
+4. **Create the real Space** (Docker SDK, private repo or mirror of this one
+   with the Space files). Set **Space secrets** (HF's env-var store): the same
+   production set as ever — `SECRET_KEY`, `DATABASE_URL` (Neon pooler),
+   `MAILBOX_ENCRYPTION_KEY` (backed up offline), `MAILBOX_ENCRYPTION_REQUIRED=true`,
+   `ENVIRONMENT=production`, `COOKIE_SECURE=true`, **`COOKIE_SAMESITE=none`**,
+   `CORS_ORIGINS=https://<spa-origin>`, `APP_BASE_URL=https://<spa-origin>`,
+   `POLL_INTERVAL_SECONDS=600`, `RATELIMIT_STORAGE_URI` (Upstash),
+   `GROQ_API_KEY`, `RESEND_API_KEY`, `SENTRY_DSN`, `WORKER_HEARTBEAT_URL`.
+5. **Frontend:** Cloudflare Pages from the GitHub repo
+   (`frontend/`, `npm ci && npm run build`, `dist/`,
+   `VITE_API_BASE_URL=https://<user>-<space>.hf.space`).
+6. **Keep-alive + monitoring:** UptimeRobot on `https://…hf.space/health` and
+   `/health/ready` every 5 min (doubles as the anti-sleep ping);
+   Healthchecks.io check wired to `WORKER_HEARTBEAT_URL`; Sentry DSN set.
+7. **Verify** with the staging checklist: cookie login (cross-site — confirm
+   the `SameSite=None; Secure` cookie round-trips), rate-limit 429 (Upstash),
+   KB upload → indexed, and the real inbound→draft→approve→send roundtrip on a
+   dedicated pilot mailbox (B-4).
 
-## 3. Tradeoffs vs. the Hetzner plan (~$9/mo)
+## 3. Compromises vs. the paid plans
 
-| | Oracle Always Free | Hetzner CX32 |
-|---|---|---|
-| Cost | $0 | ~$8/mo |
-| RAM/CPU | 24 GB / 4 ARM OCPU (better!) | 8 GB / 4 vCPU x86 |
-| **Reliability** | **Reclamation risk** (mitigated by PAYG upgrade, not eliminated); capacity lottery at creation; weaker support | Boringly reliable; predictable |
-| Architecture | **arm64** — native build on the box; legacy-dep wheel risk; CI's amd64 image not directly reusable | amd64 — matches CI exactly |
-| Ops posture | Same compose file, same runbook | Same |
-| Suitability | Validation + first pilot users | First paying customers |
+| Compromise | Impact |
+|---|---|
+| Two processes in one container | None functionally; restart restarts both. |
+| `hf.space` subdomain (no custom domain on free Spaces) | Cross-site cookies → `SameSite=none` (supported in config); the API URL looks like a demo, not a product — acceptable for a pilot. |
+| 48-h inactivity sleep | Neutralised by UptimeRobot pings; a sleep+cold start would take minutes (image pull + torch import). |
+| Ephemeral disk | Raw KB files lost on restart (chunks safe in Neon); re-upload to re-ingest. |
+| No SLA; HF may restart/rebuild Spaces | Worker resumes via the queue (`awaiting_ai` rows persist); minutes of downtime possible at random. |
+| ToS greyness | Free Spaces are meant primarily for ML demos/apps; a low-traffic AI-support pilot is ML-adjacent but not a classic demo. Risk: HF asks you to upgrade/move. Mitigation: low traffic, honest naming, be ready to move (state is off-box). |
+| SMTP/IMAP egress unverified | **Hard gate** — checked in step 2 before any other work. |
+| `POLL_INTERVAL_SECONDS=600` | Unchanged from the previous plan (Neon free compute-hours); ≤10-min email pickup. |
+| Groq free tier | ~500–1,000 drafts/day ceiling, queue absorbs bursts (unchanged). |
 
-The deciding question: *can you tolerate the VM disappearing with a few hours
-of downtime while you re-provision?* For unpaid pilot validation — yes (state
-is in Neon; recovery is steps 2–7, ~1 hour). For paying customers — no; that's
-what the $9 buys.
+## 4. Expected limits (unchanged from the Oracle plan)
 
-## 4. Expected limits at $0
+~**5–15 companies**, ~**500–1,000 drafts/day** (Groq free), ~**100 MB KB text**
+total (Neon 0.5 GB), Resend 100/day (resets only). Compute is ample
+(16 GB RAM); the binding constraints are Neon compute-hours (hence the 600 s
+poll) and Groq's free-tier rate limits.
 
-| Resource | Free limit | Practical ceiling |
-|---|---|---|
-| **Neon compute** | 191.9 CU-hrs/mo | At 10 s polling the DB never suspends → ~186 CU-hrs idle-burn (over budget with api traffic). At **10-min polling** the DB sleeps between polls → roughly 75–110 CU-hrs, leaving real headroom. Email pickup latency becomes ≤ ~10 min — fine for human-reviewed support. |
-| **Neon storage** | 0.5 GB | ~100 MB of KB text (chunks ≈ 3 KB/vector + HNSW overhead) + tickets/messages. Keep `KB_MAX_DOCS_PER_COMPANY` at default; watch storage in the Neon console. |
-| **Groq free tier** | order of ~1k requests/day (limits change; check console) | ≈ **500–1,000 drafts/day** ceiling → comfortable for **5–15 pilot companies** at ~20–50 emails/day each. Excess drafts simply wait in queue (worker retries next cycle). |
-| **Companies** | — | **~5–15.** Sequential IMAP polling adds ~1–3 s per mailbox per cycle (irrelevant at 10-min cadence). |
-| **Resend** | 100/day | Password resets only — ample. |
-| **Sentry** | 5k events/mo | Fine unless something crash-loops; rate-limit in the project settings. |
-| **Oracle** | 4 OCPU/24 GB, 200 GB, 10 TB egress/mo | Compute is the least constrained resource in the whole stack. |
+## Fallback: own PC + Cloudflare Tunnel
 
-## 5. Migration path to Hetzner (when budget exists)
+If HF blocks mail egress (step 2 fails) or the Space proves too flaky: run the
+stack on your own always-on PC — natively in the venv (as the live e2e test
+already did) or via compose — and publish it with **Cloudflare Tunnel** (free,
+no card, no port-forwarding, hides your IP). Honest catch: a *stable named*
+tunnel hostname requires a domain in your Cloudflare account (~$10/yr — money,
+but not monthly and not a card-on-file subscription… it does need a payment
+method, e.g. PayPal works on some registrars). Without any domain, tunnel URLs
+are ephemeral — unusable for a pilot. Other tradeoffs: your PC's uptime is the
+SLA, residential bandwidth, electricity.
 
-Designed to be a DNS flip — **no data migrates** (state is in Neon; certs
-re-issue; rate-limit counters are disposable):
+## 5. Migration path (HF Space → Hetzner, when budget exists)
 
-1. Provision Hetzner CX32 (amd64), harden, install Docker (≈ §2 steps 4).
-2. Copy `.env` to the new box (same values; same `API_DOMAIN`).
-3. `git clone` + `docker compose -f docker-compose.prod.yml up -d --build`
-   (or pull a CI-built amd64 image — CI already validates that architecture).
-4. Lower the `api.domain.com` DNS TTL in advance (300 s), then switch the A
-   record to the Hetzner IP. Caddy obtains a fresh certificate on first hit.
-5. Watch `/health/ready` + Sentry on the new box; stop the Oracle compose stack
-   once traffic has moved. Keep the Oracle VM as a free warm spare, or delete.
-6. Nothing changes for Pages, Neon, Groq, Resend, or the monitoring accounts.
-
-Total switchover effort ≈ 30–60 minutes, downtime ≈ DNS TTL.
+Identical in spirit to before — **no data migrates**:
+1. Provision the VPS, copy `.env`, `docker compose -f docker-compose.prod.yml
+   up -d --build` (the compose path was built for exactly this).
+2. Point the SPA's `VITE_API_BASE_URL` at the new `api.<domain>` (one Pages
+   env change + rebuild), set `COOKIE_SAMESITE=lax` (same-site again),
+   update `CORS_ORIGINS`/`APP_BASE_URL`.
+3. Re-point UptimeRobot/Healthchecks; pause the Space.
+Effort ≈ an hour; Neon/Upstash/Groq/Resend/Sentry unchanged (drop Upstash for
+on-box redis if you prefer).
