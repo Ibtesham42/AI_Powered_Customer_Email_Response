@@ -7,7 +7,7 @@ Owns the data model, migrations, multi-tenant isolation, and query performance.
 - The Postgres schema (see `DATABASE_SCHEMA.md`) and its evolution.
 - Alembic migrations — authoring, ordering, and safe rollout.
 - pgvector setup for KB embeddings.
-- Indexes, constraints, and the data migration off the legacy `emails` table.
+- Indexes and constraints (the legacy `emails`-table migration is done).
 
 ## Coding standards
 
@@ -15,7 +15,9 @@ Owns the data model, migrations, multi-tenant isolation, and query performance.
   retired and must not return.
 - Migrations are reviewed for reversibility and for locking behaviour on large
   tables.
-- Native Postgres enum types for fixed value sets (see DATABASE_SCHEMA.md).
+- Enum-ish columns are **String + app-layer StrEnum validation**
+  (`backend/models/enums.py`) — the decided pattern; do not switch to native
+  PG enums (ALTER TYPE friction).
 - `timestamptz` for all timestamps, never naive `timestamp`.
 
 ## Architecture rules

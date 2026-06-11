@@ -3,10 +3,28 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 8 — Pilot readiness · branch `feature/phase-8-pilot-readiness`
+## Phase 8 — Pilot readiness (merged) + follow-ups
 
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
+
+### Follow-up — Review Queue surfaces escalated tickets (frontend fix)
+- Found by the owner's local user-flow test: drafts existed but the queue was
+  empty — every drafted Message's Ticket had escalated (`needs_human`), the
+  queue excludes escalated by design, and the SPA had **no view listing
+  tickets at all**, so escalated work was unreachable. `ReviewQueuePage` now
+  also loads `GET /tickets` and renders an "Escalated — needs human attention"
+  section linking to the Ticket detail view (edit + send already work there).
+  Queue semantics unchanged.
+
+### Follow-up — zero-budget pilot pivot (docs + deploy assets)
+- Constraints tightened to **$0 + no credit card**: Oracle plan dropped (card);
+  Hugging Face Spaces plan built (`deploy/hf-space/`) then **killed by the
+  mail-egress probe** (`deploy/hf-probe/` — imap:993/smtp:465 unreachable from
+  Spaces). Active plan: **own PC + Tailscale Funnel** + Upstash/Neon/CF-Pages
+  free tiers (`docs/runbooks/zero-budget-pilot.md`). The probe is reusable as
+  a go/no-go gate for any future host. `.gitattributes` forces LF on `*.sh`
+  (CRLF checkout breaks bash entrypoints in Linux containers).
 
 ### Follow-up — EMBEDDING_DEVICE override (GPU-contention crash fix)
 - Found by the local production smoke test: the api (KB ingestion) and a second

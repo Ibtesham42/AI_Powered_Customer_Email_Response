@@ -1,64 +1,54 @@
 # Current Tasks
 
-Active checkpoint: **Phase 8 — pilot readiness, all 4 chunks done** on
-`feature/phase-8-pilot-readiness` (awaiting merge OK). Phases 0–7 merged to
-`main`; CI fully green (lint-test + docker-build). Pilot blockers closed in
-code: monitoring (B-3), send idempotency (B-5), KB limits (B-6), prod compose +
-Caddy/TLS. Remaining before pilot: provision infra per
-`docs/DEPLOYMENT_STRATEGY.md` (VPS + Neon + Cloudflare Pages), create
-Sentry/Healthchecks/UptimeRobot accounts, real inbound roundtrip (B-4).
+Active checkpoint: **Phases 0–8 merged to `main`; CI fully green (lint-test +
+docker-build); local production smoke test 16/16; the owner has run the full
+user flow locally** (real Gmail inbound → tickets → drafts → review UI). The
+pilot deployment plan is **own PC + Tailscale Funnel** ($0, no credit card —
+Oracle and Hugging Face were eliminated; HF failed the mail-egress probe). See
+`docs/runbooks/zero-budget-pilot.md`.
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
 History: `CHANGELOG.md`.
 
-Test status: **79 tests green** (`pytest`). RAG-scoping + audit assertions still
+Test status: **81 tests green** (`pytest`). RAG-scoping + audit assertions still
 deferred (SQLite-only suite; commented Postgres+pgvector CI job sketch ready).
-**Migration pending apply:** `a1b2c3d4e5f6` (users.token_version) — run
-`alembic upgrade head` on deploy (couldn't run here; Neon DNS down).
 
-## Phase 7 — production hardening (Critical + High audit blockers)
-*Ordered by risk-reduction ÷ effort. Medium/Low audit items are out of scope.*
+## Next: pilot launch (infra/accounts, not code)
+1. ☐ Tailscale + Upstash accounts (SSO, no card) → `tailscale funnel 8000`.
+2. ☐ `.env.pilot` per runbook §2 (fresh secrets; `EMBEDDING_DEVICE=cpu` and
+   `POLL_INTERVAL_SECONDS=600` are mandatory on this box).
+3. ☐ Cloudflare Pages deploy of `frontend/` (`VITE_API_BASE_URL`,
+   `COOKIE_SAMESITE=none`).
+4. ☐ Monitoring accounts (Sentry / Healthchecks.io / UptimeRobot) → env vars.
+5. ☐ Verify checklist incl. send-from-queue on the dedicated mailbox; B-4
+   inbound path already proven in the local run.
+6. ☐ Invite the pilot company (checklist in `docs/LAUNCH_READINESS.md`).
+## Done (full history in `CHANGELOG.md`)
+- **Phases 0–6**: DB/auth → domain model → mailbox/ingestion → RAG (pgvector)
+  → AI pipeline → Vite/React SPA at feature parity.
+- **Phase 7** (production hardening): test harness, SSRF guard, mailbox-key
+  fail-fast, token TTL+revocation, cookie token transport, Docker/compose/CI.
+- **Phase 8** (pilot readiness): Sentry + worker heartbeat, send idempotency
+  (atomic SENDING claim), KB upload limits, `docker-compose.prod.yml` + Caddy.
+- **Post-Phase-8 fixes**: `POLL_INTERVAL_SECONDS` + `EMBEDDING_DEVICE` env
+  knobs, pytest/CI package-discovery fix, test-dep pins, escalated-tickets
+  section in the Review Queue UI, `.gitattributes` LF for shell scripts.
+- Live verifications: 11-step e2e (real Neon/Groq/Gmail), 16/16 production
+  smoke test, owner-run local user flow (real inbound mail → drafts → UI).
 
-1. ☑ C1 — test harness + tenancy/auth/state-machine safety net (ASGITransport;
-   pytest + pytest-asyncio; SQLite-backed auth/tenant tests; 35 green). **(High)**
-2. ☑ H4 — SSRF guard on URL KB ingestion (`app/rag/url_guard.py`; validated at
-   fetch + each redirect hop + the `/data/url` route; 16 tests). **(Low)**
-3. ☑ H3 — mailbox encryption key: fail-fast at startup (invalid always; missing
-   when `MAILBOX_ENCRYPTION_REQUIRED`), features refuse (503) without a key,
-   backup/recovery + rotation runbook. 4 tests. **(Low)**
-4. ☑ H2 — short access-token TTL (30 min) + revocation via per-user
-   `token_version` claim; `POST /auth/logout-all`; reset bumps it. Migration
-   `a1b2c3d4e5f6`. 4 tests. **(Medium)**
-5. ☑ H1 — token transport hardening: refresh token → httpOnly+Secure+SameSite
-   cookie scoped to `/api/v1/auth` (`backend/auth/cookies.py`; cookie-first,
-   body fallback for non-browser clients); SPA access token in memory, silent
-   cookie refresh on load; security-headers middleware + HSTS-in-prod; CORS
-   credentials on. New `ENVIRONMENT`/`COOKIE_*` config. +4 tests. **(High)**
-6. ☑ C2 — deployment & runtime: shared non-root Dockerfile (api/worker/migrate),
-   docker-compose (pgvector pg16 + redis + one-shot migrate gating app +
-   healthchecks/restart), worker SIGTERM + crash backoff, `/health/ready` DB
-   probe, Redis rate-limit (prod fail-fast), env-tunable DB pool, GitHub Actions
-   CI (pytest blocking; ruff/black/mypy/pip-audit non-blocking),
-   `docs/runbooks/deployment.md`. Built via devops/backend/database/security
-   specialist agents. **(High)**
-
-Deferred (not in this plan): Phase 6 cut-over (retire Streamlit after a live
-E2E test); the C2 hardening follow-ups (digest-pinned base images, image CVE
-scanning, image slimming, lint/format baseline cleanup → flip ruff/black to
-blocking — see `docs/runbooks/deployment.md`); and all audit Medium/Low items
-(idempotency, send retry, KB caps, signup enumeration, audit gaps, pagination).
-
-## Phase 6 — done (merged to `main`)
-Vite + React SPA at feature parity: scaffold, auth (typed client + refresh-on-401),
-review queue, ticket/draft review, KB + mailbox panels, overview, plus prod CORS +
-`VITE_API_BASE_URL`. Only the cut-over (retire Streamlit after a live E2E test) is
-deferred. Phases 0–5 (DB/auth, domain model, mailbox/ingestion, RAG, AI pipeline)
-are also on `main`. Full breakdown: `CHANGELOG.md`.
+Deferred: Streamlit cut-over; C2 hardening follow-ups (digest-pinned images,
+image CVE scan, image slimming, flip ruff/black to blocking); audit Medium/Low
+leftovers (signup enumeration, audit gaps, pagination).
 
 ## Known cautions
-- `TestClient` is broken with httpx 0.28 (`app=` removed) — Phase 7 chunk 1
-  switches tests to `httpx.ASGITransport`.
-- pgvector `Vector` type is Postgres-only — SQLite test DB must exclude
-  `kb_chunks`; RAG-scoping tests need a real pgvector DB (skip otherwise).
-- The embedding model + Groq are heavy / need network — verify through the
-  running app where practical.
-- DB (Neon) host was unresolvable in the sandbox — live DB flows unverified here.
+- `TestClient` is broken with httpx 0.28 — tests use `httpx.ASGITransport`;
+  test-critical deps are pinned (`httpx==0.28.1`, `pytest==9.0.3`).
+- pgvector `Vector` is Postgres-only — SQLite test DB excludes `kb_chunks` +
+  `audit_logs`; RAG-scoping tests need a real pgvector DB.
+- `backend`/`app` are NOT pip-installed — `pythonpath=["."]` (pyproject) and
+  `PYTHONPATH=/app` (Docker) make them importable; don't remove either.
+- **Single-box GPU**: api + worker both load the BGE model; concurrent CUDA
+  loads on a small GPU crash natively → pin `EMBEDDING_DEVICE=cpu`.
+- **The worker marks fetched mail read** and ingests *all* unread mail —
+  never connect a personal/shared inbox; zero the inbox before connecting.
+- Local dev DB is shared with the owner's test company ('sham', real mailbox
+  connected) — don't bulk-delete Neon rows without asking.

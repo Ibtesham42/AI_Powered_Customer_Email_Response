@@ -6,11 +6,12 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phases 0–6 (chunks 0–7-prep) merged to `main`. Now on
-**Phase 7 — production hardening** (`feature/phase-7-hardening`): closing the
-Critical + High blockers from the production-readiness audit. Phase 6 cut-over
-(retire Streamlit) and the audit's Medium/Low items remain deferred. See
-`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
+**Current checkpoint:** **Phases 0–8 merged to `main`** (2026-06-12); CI green
+(tests + Docker build); workflow verified live and via the owner-run local user
+flow. Next: deploy the zero-budget pilot (own PC + Tailscale Funnel —
+`docs/runbooks/zero-budget-pilot.md`). Phase 6 cut-over (retire Streamlit) and
+the audit's Medium/Low items remain deferred. See `CURRENT_TASKS.md` and
+`PROJECT_STATE.md`.
 
 ---
 
@@ -167,11 +168,11 @@ the backend via Vite's proxy (no CORS in dev).
   `frontend/README.md`. Retiring `dashboard_app.py` is deferred to a live
   end-to-end test (login → queue → review → send) against a real DB.
 
-## Phase 7 — Production hardening  ☑ COMPLETE (on `feature/phase-7-hardening`)
+## Phase 7 — Production hardening  ☑ COMPLETE (merged to `main`)
 *Goal: close the Critical + High blockers from the production-readiness audit so
 a real company can run this. Ordered by risk-reduction ÷ effort. Medium/Low
 audit items are deliberately out of scope for now. All six chunks (C1, H4, H3,
-H2, H1, C2) done; awaiting merge to `main`.*
+H2, H1, C2) done and merged.*
 
 - ☑ Chunk 1 (C1) — test harness + tenancy/auth/state-machine safety net. Fixed
   the broken `TestClient` (httpx 0.28 → `ASGITransport`). `pytest` +
@@ -212,7 +213,7 @@ H2, H1, C2) done; awaiting merge to `main`.*
   pgvector job sketch. `docs/runbooks/deployment.md`. Built by the
   devops/backend/database/security specialist agents. *(High)*
 
-## Phase 8 — Pilot readiness  ☑ chunks 1–4 done (on `feature/phase-8-pilot-readiness`)
+## Phase 8 — Pilot readiness  ☑ COMPLETE (merged to `main`)
 *Goal: close the pilot-deployment blockers from `docs/LAUNCH_READINESS.md`
 ahead of the first real company (strategy: `docs/DEPLOYMENT_STRATEGY.md`).*
 
@@ -224,8 +225,12 @@ ahead of the first real company (strategy: `docs/DEPLOYMENT_STRATEGY.md`).*
   quota (409), FAQ length caps (422). 5 tests. **79 green.**
 - ☑ Chunk 4 — `docker-compose.prod.yml` + `Caddyfile`: single-VPS prod stack
   (Caddy TLS only public service, Neon DB, internal api/worker/redis).
-- ☐ Deploy: provision VPS/Neon/Pages + monitoring accounts, then the staging
-  checklist incl. the real inbound roundtrip (B-4). Infra work, not code.
+- ☑ Follow-ups: `POLL_INTERVAL_SECONDS` + `EMBEDDING_DEVICE` env knobs,
+  escalated-tickets section in the Review Queue UI, HF mail-egress probe +
+  Space assets (`deploy/`), `.gitattributes` LF. **81 tests green.**
+- ☐ Deploy the zero-budget pilot (own PC + Tailscale Funnel + Upstash + CF
+  Pages — `docs/runbooks/zero-budget-pilot.md`): accounts, `.env.pilot`,
+  Funnel, Pages, monitoring, verify checklist. Infra/accounts, not code.
 
 ## Cross-cutting (folded into Phase 7 above)
 

@@ -20,6 +20,9 @@ The codebase is a working prototype being hardened into a production SaaS. The
 - `SYSTEM_ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `API_DOCUMENTATION.md` —
   the target system. Where code differs, these are the destination.
 - `IMPLEMENTATION_ROADMAP.md` — the incremental, phase-by-phase plan.
+- `docs/LAUNCH_READINESS.md`, `docs/DEPLOYMENT_STRATEGY.md`,
+  `docs/runbooks/` — launch status, hosting strategy, and operational runbooks
+  (the active pilot plan is `docs/runbooks/zero-budget-pilot.md`).
 - `.claude/agents/*.md` — specialist guidance per discipline.
 
 Working principle: **harden incrementally, never big-bang.** Every change ships
@@ -40,11 +43,15 @@ alembic upgrade head
 # FastAPI backend (the real entry point) — http://127.0.0.1:8000, docs at /docs
 uvicorn backend.main:app --reload
 
-# Streamlit admin dashboard — talks to the backend at 127.0.0.1:8000
-streamlit run dashboard_app.py
+# React SPA (the primary frontend) — http://localhost:5173, proxies /api to :8000
+cd frontend && npm run dev
 
-# Background worker: polls Gmail IMAP + drains the AI queue every 10s
+# Background worker: polls each Company mailbox over IMAP + drains the AI queue
+# (interval env-tunable via POLL_INTERVAL_SECONDS, default 10s)
 python scripts/email_worker.py
+
+# Legacy Streamlit admin dashboard (kept until formal retirement)
+streamlit run dashboard_app.py
 ```
 
 Knowledge bases are built by uploading files to `POST /api/v1/data/upload` — the
@@ -73,8 +80,11 @@ fully reflect:
   multi-tenancy. `backend/services/ai_service.py` is the bridge: it calls
   into `app.rag`, `app.llm`, and `app.email`.
 
-`dashboard_app.py` is the current frontend and only talks to the FastAPI backend over
-HTTP. The standalone Streamlit apps are the legacy single-tenant path.
+The **Vite + React SPA in `frontend/`** is the primary frontend (auth, review
+queue incl. escalated tickets, ticket detail, KB, mailbox, overview); it talks
+to the backend over `/api/v1` (Vite dev proxy locally). `dashboard_app.py`
+(Streamlit) is the legacy admin UI, kept until formal retirement; the
+standalone Streamlit apps are the older single-tenant path.
 
 ### Request flow
 
@@ -116,8 +126,8 @@ SMTP failure), both validated in `backend/services/state_machine.py`.
 - Knowledge bases: `POST /api/v1/data/upload` saves the file under
   `data/users/<company_id>/raw`, registers a `KbDocument`, and an in-process
   background task extracts/chunks/embeds it into the per-Company `kb_chunks`
-  pgvector table. (Retrieval still reads the legacy FAISS index until Phase 4
-  chunk 3.)
+  pgvector table (size/count limits: `KB_MAX_FILE_MB`,
+  `KB_MAX_DOCS_PER_COMPANY`). Retrieval reads pgvector, scoped by `company_id`.
 
 ### Persistence
 
@@ -151,6 +161,19 @@ Streamlit `dashboard_app.py` (kept working until cut-over).
   `LLM_MAX_TOKENS`, `LLM_TIMEOUT`) live in `app/utils/config.py` (`Config`) and
   are env-overridable. `LLMClient` reads them; construct it once per process via
   `app.llm.llm_client.get_llm_client()` — never `LLMClient()` in the hot path.
+- **Single-box GPU crash**: the api (KB ingestion) and the worker (retrieval)
+  BOTH load the BGE embedding model; two simultaneous CUDA loads on a small GPU
+  kill the process natively (no traceback). Pin `EMBEDDING_DEVICE=cpu` whenever
+  both run on one machine.
+- **The worker ingests ALL unread mail and marks it read** on every connected
+  mailbox. Never connect a personal/shared inbox; mark the inbox read before
+  connecting a test mailbox.
+- The Review Queue (UI + `GET /tickets/queue`) shows only non-escalated DRAFTED
+  messages; escalated Tickets appear in the queue page's separate "Escalated"
+  section and are actioned from the Ticket detail view.
+- `backend`/`app` are not pip-installed packages: bare `pytest` works via
+  `pythonpath=["."]` in `pyproject.toml`, containers via `PYTHONPATH=/app` in
+  the Dockerfile. Don't remove either.
 - `venv/` is committed to the repo; never edit or scan files under it.
 
 ## Project notes

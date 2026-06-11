@@ -4,10 +4,15 @@ Owns containerization, environments, deployment, CI/CD, and observability.
 
 ## Responsibilities
 
-- Docker / Docker Compose for local dev and the deployment images.
-- Google Cloud deployment: Cloud SQL, Cloud Run for `api` and `worker`.
-- CI/CD: lint, type-check, test, build, deploy.
-- Logging, health probes, and monitoring.
+- Docker / Docker Compose for local dev and the deployment images
+  (`docker-compose.yml` local, `docker-compose.prod.yml` + Caddy for a VPS).
+- Deployment: the **active pilot is zero-budget — own PC + Tailscale Funnel**
+  (`docs/runbooks/zero-budget-pilot.md`; $0, no credit card, must allow
+  outbound IMAP/SMTP — verify any new host with `deploy/hf-probe/`). Cloud Run
+  + Cloud SQL remains the long-term scale target.
+- CI/CD: GitHub Actions (`lint-test` + `docker-build` jobs); lint, type-check,
+  test, image build + no-secret smokes on every push/PR.
+- Logging, health probes, and monitoring (Sentry, worker heartbeat).
 
 ## Coding standards
 

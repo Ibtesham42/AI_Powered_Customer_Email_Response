@@ -26,8 +26,8 @@ access — security defects are launch blockers.
 - **Tenant isolation is the top invariant.** `company_id` is derived from the
   authenticated token on every request — never read from request body/query/
   path. A query without a `company_id` filter on tenant data is a breach.
-- The signup flow always creates a *new* Company. Joining a Company by name is
-  the current critical hole and must be removed.
+- The signup flow always creates a *new* Company (the old join-by-name hole
+  was removed in Phase 1; never reintroduce join-by-name).
 - Access tokens are short-lived; refresh tokens are revocable DB rows. Logout
   and credential compromise revoke the refresh row.
 - Owner-only operations enforced by an explicit dependency, not by trusting a

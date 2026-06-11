@@ -52,7 +52,9 @@ design, services, the worker, and the boundary between the two layers.
 ## Performance requirements
 
 - Load the embedding model and any heavy client **once** per process, not per
-  request (the current per-email reload is a defect).
+  request (`get_embedding_model()` / `get_llm_client()` singletons — keep it
+  that way). `EMBEDDING_DEVICE=cpu` is mandatory when api + worker share one
+  small-GPU box (concurrent CUDA loads crash natively).
 - Queue rows are claimed with row-level locking so workers don't double-process.
 - List endpoints are paginated and backed by appropriate indexes.
 - Long work (KB indexing) runs in the background, never blocking a request.

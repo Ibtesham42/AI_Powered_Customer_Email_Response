@@ -1,9 +1,12 @@
 # Project State
 
-Snapshot of the AI Customer Support SaaS as of **Phase 6 chunks 0–7-prep**
-(merged to `main`). The Vite + React SPA has feature parity (auth, queue, draft
-review, KB, mailbox, overview); the only thing left is the cut-over — retiring
-Streamlit after a live end-to-end test. Phase plan:
+Snapshot of the AI Customer Support SaaS as of **Phases 0–8 merged to `main`**
+(2026-06-12). All Critical/High production-readiness blockers and the pilot
+code blockers are closed; CI is green (tests + Docker build); the full workflow
+is verified live (real Neon/Groq/Gmail) and the owner has run the user flow
+locally end-to-end. Next step is the zero-budget pilot deployment (own PC +
+Tailscale Funnel — `docs/runbooks/zero-budget-pilot.md`). The Vite + React SPA
+is the primary UI (Streamlit retirement still pending formally). Phase plan:
 `IMPLEMENTATION_ROADMAP.md` · Next work: `CURRENT_TASKS.md` ·
 History: `CHANGELOG.md` · Glossary: `CONTEXT.md`.
 
@@ -140,29 +143,40 @@ managed Postgres.
 
 ## Testing
 
-- `pytest` suite in `tests/` (Phase 7 chunks 1–5): runs against in-memory SQLite,
-  drives routes over `httpx.ASGITransport`. **63 tests** — state machine,
-  escalation, AI confidence/parse, auth flow (incl. cookie transport), tenant
-  isolation, token revocation, SSRF guard, mailbox key. Run: `pytest`.
+- `pytest` suite in `tests/`: runs against in-memory SQLite, drives routes over
+  `httpx.ASGITransport`. **81 tests** — state machine, escalation, AI
+  confidence/parse, auth flow (incl. cookie transport), tenant isolation, token
+  revocation, SSRF guard, mailbox key, monitoring, send idempotency, KB limits.
+  Run: `pytest` (repo root; `pythonpath=["."]` in pyproject makes `backend`
+  importable under bare pytest — same fix as `PYTHONPATH=/app` in the image).
 - The SQLite schema excludes `kb_chunks` (pgvector) and `audit_logs` (JSONB);
   RAG-scoping + audit assertions need the Postgres-backed CI run (a commented
   job sketch exists in `.github/workflows/ci.yml`; tests not yet written).
 - CI (`.github/workflows/ci.yml`, Phase 7 C2): GitHub Actions on push/PR runs
   `pytest` (blocking) + `ruff`/`black`/`mypy`/`pip-audit` (non-blocking).
 
-## Deployment (Phase 7 chunk C2)
+## Deployment
 
-- One shared non-root multi-stage `Dockerfile` (py3.12) runs `api`, `worker`,
-  and `migrate` (differ only by `command`). `docker compose up --build` brings
-  up `db` (pgvector pg16) + `redis` + one-shot `migrate` (`alembic upgrade head`)
-  + `api` + `worker`; migrations are a deploy step, never on app startup.
+- **Images/compose** (Phase 7 C2 + Phase 8): one shared non-root multi-stage
+  `Dockerfile` runs `api`/`worker`/`migrate` (differ only by `command`);
+  `docker-compose.yml` = local stack (pgvector pg16 + redis + one-shot migrate);
+  `docker-compose.prod.yml` + `Caddyfile` = single-VPS stack (Caddy TLS only
+  public service, DB on managed Postgres). CI builds the image on every push
+  (`docker-build` job) with no-secret runtime smokes.
 - Probes: `GET /health` (liveness, DB-free) and `GET /health/ready` (`SELECT 1`,
-  503 if DB down). Worker handles SIGTERM gracefully + self-heals on crash.
-- Rate limiting uses Redis (`RATELIMIT_STORAGE_URI`); the app refuses to start in
-  production without it. DB pool is env-tunable (`DB_POOL_SIZE` etc.).
-- Target: Cloud Run + Cloud SQL. Runbook: `docs/runbooks/deployment.md`
-  (includes the out-of-scope hardening follow-ups: digest-pinned images, image
-  CVE scanning, image slimming, lint/format baseline → blocking).
+  503 if DB down). Worker: SIGTERM-graceful, crash backoff, heartbeat ping
+  (`WORKER_HEARTBEAT_URL`); Sentry optional via `SENTRY_DSN` (fail-soft).
+- Rate limiting uses Redis (`RATELIMIT_STORAGE_URI`); the app refuses to start
+  in production without it. Env knobs: `DB_POOL_*`, `POLL_INTERVAL_SECONDS`
+  (600 on Neon free tier so compute can autosuspend), `EMBEDDING_DEVICE`
+  (**pin `cpu` on any single box running api+worker** — concurrent CUDA loads
+  on a small GPU crash natively).
+- **Active pilot plan ($0, no credit card)**: own PC + Tailscale Funnel +
+  Upstash Redis + Neon free + Cloudflare Pages —
+  `docs/runbooks/zero-budget-pilot.md`. Eliminated: Oracle (card), HF Spaces
+  (**failed the mail-egress probe** — `deploy/hf-probe/` is reusable for any
+  future host). Upgrade ladder: $10/yr domain → CF Tunnel; ~$9/mo → Hetzner
+  via `docker-compose.prod.yml` (`docs/DEPLOYMENT_STRATEGY.md`).
 
 ## Active technical debt
 
