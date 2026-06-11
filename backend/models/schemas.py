@@ -58,7 +58,9 @@ class LoginRequest(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    # Optional: browser clients send the refresh token in an httpOnly cookie
+    # (audit H1) and omit the body; non-browser clients still pass it here.
+    refresh_token: str | None = None
 
 
 class DraftUpdate(BaseModel):

@@ -1,0 +1,110 @@
+# Local dev stack: `docker compose up --build` brings up the whole thing.
+#
+# NOT a production artifact — the Postgres credentials below (postgres/postgres)
+# are throwaway dev defaults and the DB port is not published off-host. Prod runs
+# on Cloud Run + Cloud SQL with secrets from Secret Manager (see
+# docs/runbooks/deployment.md).
+#
+# Topology mirrors the Cloud Run target:
+#   db      - Postgres 16 WITH pgvector (mirrors Cloud SQL major version)
+#   redis   - shared store for the API rate limiter
+#   migrate - one-shot `alembic upgrade head`, runs to completion then exits
+#   api     - FastAPI (uvicorn), the only public port
+#   worker  - background IMAP poller + AI queue drainer (separate process)
+#
+# api/worker share ONE image (built from ./Dockerfile) and differ only by
+# `command`. Schema is applied by the `migrate` service BEFORE api/worker start
+# — never on app startup (matches the Cloud Run pre-deploy migration job).
+
+services:
+  db:
+    # pgvector-enabled Postgres 16 — the `vector` extension is precompiled, so
+    # no CREATE EXTENSION init script is needed (an Alembic migration does it).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: acs
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d acs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    # Backs the API rate limiter (RATELIMIT_STORAGE_URI).
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    # One-shot schema migration. Runs to completion and exits (restart: no);
+    # api/worker gate on its success via service_completed_successfully.
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/acs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    command:
+      ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/acs
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Liveness probe — static, no DB. Uses stdlib so no curl needed in image.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["python", "scripts/email_worker.py"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/acs
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+      # Right-size the worker's pool — it is a single low-concurrency loop.
+      DB_POOL_SIZE: "2"
+      DB_MAX_OVERFLOW: "2"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

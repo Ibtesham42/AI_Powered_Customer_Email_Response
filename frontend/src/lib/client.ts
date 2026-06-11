@@ -1,18 +1,15 @@
 // Typed HTTP client for the backend `/api/v1` API.
 //
-// - Attaches the bearer access token to authenticated requests.
-// - On a 401, transparently refreshes the token once and retries; if the
-//   refresh fails, clears the session and emits `UNAUTHORIZED_EVENT` so the auth
-//   store can redirect to login.
+// - Attaches the in-memory bearer access token to authenticated requests.
+// - On a 401, transparently refreshes the access token once (via the httpOnly
+//   refresh cookie) and retries; if the refresh fails, clears the session and
+//   emits `UNAUTHORIZED_EVENT` so the auth store can redirect to login.
+// - The refresh token is never read in JS — it lives in an httpOnly cookie the
+//   browser sends to /auth/* because every request uses `credentials:'include'`.
 // - Normalises backend error envelopes ({detail: string} or 422
 //   [{loc,msg,...}]) into an `ApiError` with a human-readable message.
 
-import {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-} from './tokenStorage'
+import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStorage'
 import type { TokenResponse } from './types'
 
 // Relative by default (dev proxy / same-origin). Set VITE_API_BASE_URL to an
@@ -60,24 +57,24 @@ function extractMessage(body: unknown, status: number): string {
 let refreshInFlight: Promise<boolean> | null = null
 
 async function doRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) return false
+  // No body: the refresh token rides in the httpOnly cookie, sent automatically
+  // because of `credentials:'include'`. We only read back the new access token.
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: 'include',
     })
     if (!res.ok) return false
     const data = (await res.json()) as TokenResponse
-    setTokens(data.access_token, data.refresh_token)
+    setAccessToken(data.access_token)
     return true
   } catch {
     return false
   }
 }
 
-function refreshTokens(): Promise<boolean> {
+/** Refresh the access token from the cookie, deduping concurrent callers. */
+export function refreshSession(): Promise<boolean> {
   if (refreshInFlight === null) {
     refreshInFlight = doRefresh().finally(() => {
       refreshInFlight = null
@@ -117,13 +114,15 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
+    // Send the httpOnly refresh cookie to /auth/* (it is path-scoped there).
+    credentials: 'include',
     body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   })
 
   if (res.status === 401 && auth && !retried) {
-    const refreshed = await refreshTokens()
+    const refreshed = await refreshSession()
     if (refreshed) return request<T>(path, options, true)
-    clearTokens()
+    clearAccessToken()
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     throw new ApiError(401, 'Session expired. Please log in again.')
   }

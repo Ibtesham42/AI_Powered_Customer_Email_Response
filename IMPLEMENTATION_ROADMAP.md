@@ -6,11 +6,11 @@ Every phase ends with a working app. No phase leaves the system broken.
 
 Status legend: ☐ todo · ◐ in progress · ☑ done.
 
-**Current checkpoint:** Phases 0–5 plus Phase 6 chunks 0–7-prep are merged to
-`main`. The Vite + React frontend (ADR-0004, supersedes the old
-Streamlit-polish + Next.js plans) is at feature parity; only the cut-over
-(retire Streamlit after a live E2E test) remains. See `CURRENT_TASKS.md` and
-`PROJECT_STATE.md`.
+**Current checkpoint:** Phases 0–6 (chunks 0–7-prep) merged to `main`. Now on
+**Phase 7 — production hardening** (`feature/phase-7-hardening`): closing the
+Critical + High blockers from the production-readiness audit. Phase 6 cut-over
+(retire Streamlit) and the audit's Medium/Low items remain deferred. See
+`CURRENT_TASKS.md` and `PROJECT_STATE.md`.
 
 ---
 
@@ -167,14 +167,58 @@ the backend via Vite's proxy (no CORS in dev).
   `frontend/README.md`. Retiring `dashboard_app.py` is deferred to a live
   end-to-end test (login → queue → review → send) against a real DB.
 
-## Cross-cutting (ongoing)
+## Phase 7 — Production hardening  ☑ COMPLETE (on `feature/phase-7-hardening`)
+*Goal: close the Critical + High blockers from the production-readiness audit so
+a real company can run this. Ordered by risk-reduction ÷ effort. Medium/Low
+audit items are deliberately out of scope for now. All six chunks (C1, H4, H3,
+H2, H1, C2) done; awaiting merge to `main`.*
 
-- ☐ Docker Compose: `api`, `worker`, `postgres`. Production: Cloud Run +
-  Cloud SQL.
-- ☐ Tests: introduce `pytest`; cover auth, tenancy isolation, the state
-  machines, RAG scoping.
-- ☐ CI: lint + type-check + tests on push.
-- ☐ Monitoring: health/readiness probes, error tracking.
+- ☑ Chunk 1 (C1) — test harness + tenancy/auth/state-machine safety net. Fixed
+  the broken `TestClient` (httpx 0.28 → `ASGITransport`). `pytest` +
+  `pytest-asyncio`; auth + tenant-isolation tests on SQLite (`kb_chunks` +
+  `audit_logs` excluded); **35 tests green**. RAG-scoping + audit assertions
+  deferred to the Postgres CI run (chunk 6). *(High)*
+- ☑ Chunk 2 (H4) — SSRF guard on URL KB ingestion (`app/rag/url_guard.py`):
+  rejects loopback / private / link-local / metadata IPs + non-http(s); enforced
+  at fetch (each redirect hop, `follow_redirects=False`) and at the `/data/url`
+  route. 16 tests. *(Low)*
+- ☑ Chunk 3 (H3) — mailbox encryption key: fail-fast startup self-check
+  (`crypto.validate_at_startup`; invalid always aborts, missing aborts when
+  `MAILBOX_ENCRYPTION_REQUIRED`), features refuse without a key (`/mailbox/connect`
+  → 503), backup/recovery + rotation runbook
+  (`docs/runbooks/mailbox-encryption-key.md`). 4 tests. *(Low)*
+- ☑ Chunk 4 (H2) — short access-token TTL (default 30 min) + real revocation
+  via a per-user `token_version` claim (`get_current_user` rejects stale
+  versions); `POST /auth/logout-all` + password reset bump it. Migration
+  `a1b2c3d4e5f6`. 4 tests. *(Medium)*
+- ☑ Chunk 5 (H1) — token transport hardening. Refresh token now rides in an
+  httpOnly+Secure+SameSite cookie scoped to `/api/v1/auth` (`backend/auth/
+  cookies.py`); `/refresh` + `/logout` read cookie-first with a body fallback
+  for non-browser clients (legacy Streamlit, tests). SPA holds the access token
+  in memory only (`tokenStorage.ts`), refreshes via the cookie
+  (`credentials:'include'`), and silently re-bootstraps the session on load.
+  Security-headers middleware (nosniff / frame-DENY / referrer-policy / HSTS in
+  prod) + CORS `allow_credentials=True`. New `ENVIRONMENT` + `COOKIE_*` config.
+  63 tests (+4: cookie login/refresh/logout, headers). *(High)*
+- ☑ Chunk 6 (C2) — deployment & runtime hardening. One shared multi-stage,
+  non-root `Dockerfile` (py3.12) for api/worker/migrate; `docker-compose.yml`
+  (pgvector pg16 + redis + one-shot `migrate` gating api/worker via
+  `service_completed_successfully` + healthchecks/restart policies);
+  `.dockerignore`. Worker resilience (SIGTERM graceful shutdown + top-level
+  crash backoff). `GET /health/ready` DB-readiness probe (liveness `/health`
+  stays DB-free). Redis-backed rate limiting (`RATELIMIT_STORAGE_URI`), **fail-
+  fast in prod** if unset. Env-tunable DB pool. GitHub Actions CI (pytest
+  blocking; ruff/black/mypy/pip-audit non-blocking) + a deferred Postgres+
+  pgvector job sketch. `docs/runbooks/deployment.md`. Built by the
+  devops/backend/database/security specialist agents. *(High)*
+
+## Cross-cutting (folded into Phase 7 above)
+
+- ◐ Docker Compose / worker resilience / Redis rate-limit / readiness → Phase 7
+  chunk 6. Production target: Cloud Run + Cloud SQL.
+- ◐ Tests (auth, tenancy, state machines, RAG scoping) → Phase 7 chunk 1.
+- ◐ CI (lint + type-check + tests) → Phase 7 chunk 6.
+- ☐ Monitoring: error tracking (Sentry-style) — not yet scheduled.
 
 ## Reference
 

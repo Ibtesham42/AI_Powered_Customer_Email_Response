@@ -1,6 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
+from backend.auth.cookies import (
+    clear_refresh_cookie,
+    read_refresh_token,
+    set_refresh_cookie,
+)
+from backend.auth.dependencies import get_current_user
 from backend.auth.hashing import hash_password, verify_password
 from backend.auth.jwt_handler import create_access_token
 from backend.config import settings
@@ -20,7 +26,7 @@ from backend.services import audit_service, email_service, password_reset_servic
 from backend.services.auth_service import (
     get_active_refresh_token,
     issue_refresh_token,
-    revoke_all_refresh_tokens,
+    revoke_all_sessions,
     revoke_refresh_token,
 )
 
@@ -28,13 +34,23 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-def _issue_tokens(db: Session, user: User, request: Request) -> dict:
-    """Build an access token and a stored refresh token for a user."""
+def _issue_tokens(
+    db: Session, user: User, request: Request, response: Response
+) -> dict:
+    """Build an access token and a stored refresh token for a user.
+
+    The refresh token is set as an httpOnly cookie (audit H1) *and* returned in
+    the body — browser clients (the SPA) use only the cookie and ignore the body
+    value; non-browser clients (legacy Streamlit, tests) read the body.
+    """
     access_token = create_access_token(
         {
             "user_id": user.id,
             "company_id": user.company_id,
             "sub": user.email,
+            # Carried so a token_version bump (sign-out-everywhere / reset)
+            # invalidates this access token — see get_current_user.
+            "token_version": user.token_version,
         }
     )
     refresh_token = issue_refresh_token(
@@ -43,6 +59,7 @@ def _issue_tokens(db: Session, user: User, request: Request) -> dict:
         user_agent=request.headers.get("user-agent"),
         ip_address=request.client.host if request.client else None,
     )
+    set_refresh_cookie(response, refresh_token)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -103,7 +120,12 @@ def signup(payload: SignupRequest, request: Request, db: Session = Depends(get_d
 
 @router.post("/login")
 @limiter.limit("10/minute")
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.email == payload.email).first()
 
     # One generic message for both cases — no account enumeration.
@@ -120,7 +142,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         )
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    tokens = _issue_tokens(db, user, request)
+    tokens = _issue_tokens(db, user, request, response)
     audit_service.record(
         db,
         action="login",
@@ -136,11 +158,14 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 @router.post("/refresh")
 def refresh(
-    payload: RefreshTokenRequest,
     request: Request,
+    response: Response,
+    payload: RefreshTokenRequest | None = Body(None),
     db: Session = Depends(get_db),
 ):
-    row = get_active_refresh_token(db, payload.refresh_token)
+    # Cookie first (browser SPA), body fallback (non-browser clients).
+    token = read_refresh_token(request, payload.refresh_token if payload else None)
+    row = get_active_refresh_token(db, token) if token else None
     if row is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -148,19 +173,21 @@ def refresh(
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    # Rotate: revoke the presented token and issue a fresh pair.
+    # Rotate: revoke the presented token and issue a fresh pair (+ new cookie).
     revoke_refresh_token(db, row)
-    return _issue_tokens(db, user, request)
+    return _issue_tokens(db, user, request, response)
 
 
 @router.post("/logout")
 def logout(
-    payload: RefreshTokenRequest,
     request: Request,
+    response: Response,
+    payload: RefreshTokenRequest | None = Body(None),
     db: Session = Depends(get_db),
 ):
     # Idempotent — always succeeds, whether or not the token was valid.
-    row = get_active_refresh_token(db, payload.refresh_token)
+    token = read_refresh_token(request, payload.refresh_token if payload else None)
+    row = get_active_refresh_token(db, token) if token else None
     if row is not None:
         revoke_refresh_token(db, row)
         # Audit only a real session ending; an invalid token is a no-op.
@@ -174,7 +201,32 @@ def logout(
             entity_type="user",
             entity_id=row.user_id,
         )
+    # Always clear the browser's cookie, even on an already-invalid token.
+    clear_refresh_cookie(response)
     return {"message": "Logged out"}
+
+
+@router.post("/logout-all")
+def logout_all(
+    request: Request,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sign out of every session: invalidate all of the user's access tokens
+    (token_version bump) and revoke all refresh tokens. The caller must log in
+    again afterwards."""
+    revoked = revoke_all_sessions(db, user["id"])
+    audit_service.record(
+        db,
+        action="logout_all",
+        request=request,
+        company_id=user["company_id"],
+        user_id=user["id"],
+        entity_type="user",
+        entity_id=user["id"],
+        metadata={"sessions_revoked": revoked},
+    )
+    return {"message": "Signed out of all sessions"}
 
 
 @router.post("/forgot-password")
@@ -194,9 +246,7 @@ def forgot_password(
             email_service.send_password_reset_email(user.email, reset_url)
         except Exception:
             # Never leak a send failure to the caller — log it and still 200.
-            logger.exception(
-                "Failed to send password-reset email to %s", user.email
-            )
+            logger.exception("Failed to send password-reset email to %s", user.email)
         audit_service.record(
             db,
             action="password_reset_requested",
@@ -207,9 +257,7 @@ def forgot_password(
             entity_id=user.id,
             metadata={"email": user.email},
         )
-    return {
-        "message": "If that email is registered, a reset link has been sent."
-    }
+    return {"message": "If that email is registered, a reset link has been sent."}
 
 
 @router.post("/reset-password")
@@ -228,14 +276,14 @@ def reset_password(
         else None
     )
     if row is None or user is None:
-        raise HTTPException(
-            status_code=400, detail="Invalid or expired reset token"
-        )
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.password_hash = hash_password(payload.new_password)
     # consume_reset_token commits — persisting the new hash in the same session.
     password_reset_service.consume_reset_token(db, row)
-    revoked = revoke_all_refresh_tokens(db, user.id)
+    # Bump token_version + revoke refresh tokens: kills access *and* refresh
+    # tokens, so a thief who triggered the reset path can't keep a live session.
+    revoked = revoke_all_sessions(db, user.id)
 
     audit_service.record(
         db,

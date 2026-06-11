@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from backend.config import settings
 from backend.models.refresh_token import RefreshToken
+from backend.models.user import User
 
 
 def _utcnow() -> datetime:
@@ -46,11 +47,7 @@ def issue_refresh_token(
 
 def get_active_refresh_token(db: Session, raw: str) -> RefreshToken | None:
     """Return the row if the token exists and is neither revoked nor expired."""
-    row = (
-        db.query(RefreshToken)
-        .filter(RefreshToken.token_hash == _hash(raw))
-        .first()
-    )
+    row = db.query(RefreshToken).filter(RefreshToken.token_hash == _hash(raw)).first()
     if row is None or row.revoked_at is not None:
         return None
 
@@ -84,3 +81,17 @@ def revoke_all_refresh_tokens(db: Session, user_id: int) -> int:
         row.revoked_at = _utcnow()
     db.commit()
     return len(rows)
+
+
+def revoke_all_sessions(db: Session, user_id: int) -> int:
+    """End every session for a user, including **access** tokens.
+
+    Bumps ``users.token_version`` (the access-token JWT carries it, so all
+    outstanding access tokens stop verifying) and revokes all refresh tokens.
+    Returns the number of refresh tokens revoked.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is not None:
+        user.token_version = (user.token_version or 0) + 1
+        db.commit()
+    return revoke_all_refresh_tokens(db, user_id)

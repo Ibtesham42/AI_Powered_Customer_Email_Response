@@ -15,8 +15,13 @@ from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 
+from app.rag.url_guard import validate_public_url
+
 # File extensions accepted as knowledge-base sources.
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".json"}
+
+# Cap manual redirect following; each hop is re-validated against the SSRF guard.
+_MAX_REDIRECTS = 5
 
 
 class UnsupportedFileType(Exception):
@@ -57,9 +62,7 @@ def _extract_csv(path: str) -> str:
     rows = []
     with open(path, encoding="utf-8", errors="ignore", newline="") as f:
         for row in csv.DictReader(f):
-            rows.append(
-                "\n".join(f"{k}: {v}" for k, v in row.items() if k and v)
-            )
+            rows.append("\n".join(f"{k}: {v}" for k, v in row.items() if k and v))
     return "\n\n".join(rows)
 
 
@@ -98,25 +101,38 @@ def extract_text(path: str) -> str:
     return _normalise(extractor(path))
 
 
+def _safe_get(url: str) -> httpx.Response:
+    """GET ``url`` following redirects manually, re-running the SSRF guard on
+    the initial URL and every redirect hop (``follow_redirects`` is disabled so
+    a redirect cannot bounce the request to an internal address)."""
+    headers = {"User-Agent": "AICustomerSupportBot/1.0"}
+    with httpx.Client(timeout=15, follow_redirects=False, headers=headers) as client:
+        current = url
+        for _ in range(_MAX_REDIRECTS + 1):
+            validate_public_url(current)
+            response = client.get(current)
+            location = response.headers.get("location")
+            if response.is_redirect and location:
+                current = str(httpx.URL(current).join(location))
+                continue
+            response.raise_for_status()
+            return response
+    raise ValueError("too many redirects")
+
+
 def fetch_url_text(url: str) -> str:
     """Fetch a web page and extract its readable text.
 
-    Raises ``ValueError`` if the page cannot be fetched.
+    The URL is validated against the SSRF guard (``validate_public_url``) before
+    and across redirects. Raises ``ValueError`` (incl. ``UnsafeUrlError``) if the
+    URL is unsafe or the page cannot be fetched.
     """
     try:
-        response = httpx.get(
-            url,
-            timeout=15,
-            follow_redirects=True,
-            headers={"User-Agent": "AICustomerSupportBot/1.0"},
-        )
-        response.raise_for_status()
+        response = _safe_get(url)
     except httpx.HTTPError as exc:
         raise ValueError(f"could not fetch URL: {exc}") from exc
 
     soup = BeautifulSoup(response.text, "html.parser")
-    for tag in soup(
-        ["script", "style", "nav", "header", "footer", "noscript"]
-    ):
+    for tag in soup(["script", "style", "nav", "header", "footer", "noscript"]):
         tag.decompose()
     return _normalise(soup.get_text(separator="\n"))

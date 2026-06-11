@@ -28,6 +28,7 @@ sqlalchemy==2.0.29
 alembic
 psycopg2-binary
 slowapi
+redis==5.0.8  # shared rate-limit storage for multi-instance deploys (slowapi)
 resend==2.30.1  # transactional email (password-reset)
 pgvector==0.4.2  # vector(768) column type for RAG embeddings
 httpx  # web-page fetch for URL knowledge-base ingestion

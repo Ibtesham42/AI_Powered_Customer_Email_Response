@@ -53,7 +53,11 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   (`app/email/mailbox_connector.py`, App Password impl) + `POST /mailbox/connect`
   (verifies IMAP **and** SMTP before saving) and `GET /mailbox`. The worker
   polls every connected mailbox; the send path replies from the Company's
-  own mailbox. The backend no longer uses a global `EMAIL_USER`.
+  own mailbox. The backend no longer uses a global `EMAIL_USER`. **Key
+  fail-fast (H3):** an invalid `MAILBOX_ENCRYPTION_KEY` aborts startup; a missing
+  key aborts only when `MAILBOX_ENCRYPTION_REQUIRED=true`; without a usable key
+  mailbox features refuse (connect → 503). Backup/recovery + rotation:
+  `docs/runbooks/mailbox-encryption-key.md`.
 - **AI draft queue** — no separate store: the worker drafts replies for
   inbound Messages with `review_status = awaiting_ai`, claimed with
   `FOR UPDATE SKIP LOCKED`. The `email_queue.json` file queue is retired.
@@ -84,7 +88,8 @@ Three layers (detail in `SYSTEM_ARCHITECTURE.md`):
   `rag_service.retrieve` returns the nearest chunks by cosine distance,
   filtered by `company_id`; the top chunk's similarity grounds the AI draft
   confidence. The legacy FAISS path is standalone-apps-only.
-- **Migrations** — Alembic; current head `4da268d4e51a`.
+- **Migrations** — Alembic; current head `a1b2c3d4e5f6` (adds
+  `users.token_version`). Run `alembic upgrade head` on deploy.
 
 ## Deployment status
 
@@ -104,9 +109,12 @@ managed Postgres.
 
 ## Auth state
 
-- Access token: JWT, `ACCESS_TOKEN_EXPIRE_MINUTES` (default 480).
+- Access token: JWT, `ACCESS_TOKEN_EXPIRE_MINUTES` (default **30**). Carries a
+  per-user `token_version`; `get_current_user` rejects a stale version (401).
+  Revoke all access tokens via `POST /auth/logout-all` or a password reset
+  (both bump `token_version` + revoke refresh tokens — `revoke_all_sessions`).
 - Refresh token: opaque, SHA-256 hashed in `refresh_tokens`, 30-day default;
-  rotated on `/auth/refresh`, revoked on `/auth/logout`.
+  rotated on `/auth/refresh`, revoked on `/auth/logout` (+ logout-all / reset).
 - Password reset: `/auth/forgot-password` + `/auth/reset-password`; opaque
   SHA-256-hashed tokens in `password_reset_tokens`, single-use, 30-min
   default. Completing a reset revokes all the user's refresh tokens. Reset
@@ -122,8 +130,39 @@ managed Postgres.
 - Neon cloud Postgres chosen over local Docker.
 - Enum-ish columns stored as `String` + `StrEnum` app-layer validation (not
   native PG enums) — see `backend/models/enums.py`.
-- Access token kept long (480 min) so the legacy Streamlit dashboard works
-  without silent refresh; lower it when the Next.js frontend ships.
+- Access token short (30 min) with `token_version`-based revocation (H2); the
+  React SPA refreshes transparently, legacy Streamlit re-logs-in on expiry.
+- Refresh token in an httpOnly+Secure+SameSite cookie scoped to `/api/v1/auth`
+  (H1); `/refresh` + `/logout` read cookie-first with a body fallback for
+  non-browser clients. SPA holds the access token in memory only and silently
+  re-bootstraps from the cookie on load. Security headers + HSTS-in-prod;
+  `ENVIRONMENT` / `COOKIE_*` config.
+
+## Testing
+
+- `pytest` suite in `tests/` (Phase 7 chunks 1–5): runs against in-memory SQLite,
+  drives routes over `httpx.ASGITransport`. **63 tests** — state machine,
+  escalation, AI confidence/parse, auth flow (incl. cookie transport), tenant
+  isolation, token revocation, SSRF guard, mailbox key. Run: `pytest`.
+- The SQLite schema excludes `kb_chunks` (pgvector) and `audit_logs` (JSONB);
+  RAG-scoping + audit assertions need the Postgres-backed CI run (a commented
+  job sketch exists in `.github/workflows/ci.yml`; tests not yet written).
+- CI (`.github/workflows/ci.yml`, Phase 7 C2): GitHub Actions on push/PR runs
+  `pytest` (blocking) + `ruff`/`black`/`mypy`/`pip-audit` (non-blocking).
+
+## Deployment (Phase 7 chunk C2)
+
+- One shared non-root multi-stage `Dockerfile` (py3.12) runs `api`, `worker`,
+  and `migrate` (differ only by `command`). `docker compose up --build` brings
+  up `db` (pgvector pg16) + `redis` + one-shot `migrate` (`alembic upgrade head`)
+  + `api` + `worker`; migrations are a deploy step, never on app startup.
+- Probes: `GET /health` (liveness, DB-free) and `GET /health/ready` (`SELECT 1`,
+  503 if DB down). Worker handles SIGTERM gracefully + self-heals on crash.
+- Rate limiting uses Redis (`RATELIMIT_STORAGE_URI`); the app refuses to start in
+  production without it. DB pool is env-tunable (`DB_POOL_SIZE` etc.).
+- Target: Cloud Run + Cloud SQL. Runbook: `docs/runbooks/deployment.md`
+  (includes the out-of-scope hardening follow-ups: digest-pinned images, image
+  CVE scanning, image slimming, lint/format baseline → blocking).
 
 ## Active technical debt
 
@@ -131,16 +170,14 @@ managed Postgres.
   `audit_logs`, `customers`, `messages` and `tickets` — those models declare
   `index=True` on the PK column but the DB never got the index. Harmless
   noise; fix by dropping `index=True` from the PK columns.
-- `TestClient` is broken (see Known bugs).
 - ~4 pre-existing ruff warnings in not-yet-touched files.
 - `venv/` is committed to the repo (pre-existing).
 
 ## Known bugs / gotchas
 
-- **`TestClient` unusable** — httpx 0.28 dropped the `app=` kwarg this
-  FastAPI/starlette version needs. Test via direct route-function calls with a
-  hand-built `starlette.requests.Request`. Fix later: pin httpx `<0.28` or
-  upgrade FastAPI/starlette.
+- **`TestClient` (`fastapi.testclient`) is unusable** with httpx 0.28 (it drops
+  the `app=` kwarg). Resolved for the suite by driving routes over
+  `httpx.ASGITransport` (see `tests/conftest.py`); don't reach for `TestClient`.
 - SQLAlchemy does **not** topologically order ORM deletes without
   `relationship()` declared — delete children before parents explicitly.
 - `.env` holds secrets (`SECRET_KEY`, `DATABASE_URL`, API keys) — git-ignored;

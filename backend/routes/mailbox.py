@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.email.mailbox_connector import MailboxError
 from backend.auth.dependencies import get_current_user, require_owner
+from backend.config import MissingSettingError
 from backend.database import get_db
 from backend.logging_config import get_logger
 from backend.models.schemas import MailboxConnectRequest
@@ -31,6 +32,14 @@ def connect_mailbox(
             imap_host=payload.imap_host,
             smtp_host=payload.smtp_host,
         )
+    except MissingSettingError as exc:
+        # The server can't encrypt the credential — refuse rather than store
+        # plaintext or fail opaquely. 503: a server-side configuration gap.
+        logger.error("Mailbox connect refused — encryption key unusable: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Mailbox encryption is not configured on the server.",
+        ) from exc
     except MailboxError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

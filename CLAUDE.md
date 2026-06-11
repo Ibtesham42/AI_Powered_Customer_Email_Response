@@ -52,8 +52,13 @@ backend extracts, chunks, embeds and stores them in pgvector in-process. The
 `app.rag.preprocess` / `scripts/build_rag.py` CLI scripts are the legacy FAISS
 path, used only by the standalone Streamlit apps.
 
-There is **no test framework**. `scripts/test_query.py` and `scripts/test_email_listener.py`
-are ad-hoc scripts you run directly with `python scripts/<name>.py`.
+Tests use **pytest** (`pip install -r requirements-dev.txt`, then `pytest`).
+They run against an in-memory SQLite DB and drive routes over
+`httpx.ASGITransport` (the classic `TestClient` is incompatible with httpx
+0.28). `kb_chunks` (pgvector) and `audit_logs` (JSONB) are excluded from the
+SQLite schema — RAG-scoping + audit assertions need the Postgres-backed CI run.
+`scripts/test_query.py` / `scripts/test_email_listener.py` remain ad-hoc
+`python scripts/<name>.py` probes.
 
 ## Architecture: two layers
 

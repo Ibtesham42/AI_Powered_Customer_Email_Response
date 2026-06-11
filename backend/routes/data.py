@@ -14,6 +14,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.rag.extract import SUPPORTED_EXTENSIONS
+from app.rag.url_guard import UnsafeUrlError, validate_public_url
 from backend.auth.dependencies import get_current_user, require_owner
 from backend.database import get_db
 from backend.logging_config import get_logger
@@ -96,6 +97,13 @@ def ingest_url(
     fetched, extracted, chunked and embedded by a background task."""
     company_id = user["company_id"]
     url = str(payload.url)
+
+    # SSRF guard: reject internal/metadata targets before doing any work. The
+    # background fetch re-validates (incl. each redirect hop) as defence in depth.
+    try:
+        validate_public_url(url)
+    except UnsafeUrlError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     document = kb_service.create_document(
         db,

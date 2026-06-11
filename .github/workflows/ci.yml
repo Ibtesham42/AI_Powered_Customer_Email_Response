@@ -1,0 +1,117 @@
+name: CI
+
+# Lint, format-check, test (and a non-blocking type-check) on every push and PR.
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-test:
+    name: lint + test (SQLite)
+    runs-on: ubuntu-latest
+
+    env:
+      # Tests need a SECRET_KEY at config import time. conftest does
+      # os.environ.setdefault(...), so this is belt-and-suspenders, but setting
+      # it here keeps CI independent of that default.
+      SECRET_KEY: ci-test-secret-key-not-for-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          # Cache key keys off both manifests so dep bumps invalidate it.
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        # Importing the backend pulls fastapi/sqlalchemy/slowapi/etc., and the
+        # test suite imports app.* which pulls the ML stack, so the full runtime
+        # requirements are needed. torch makes this step slow (multi-minute) but
+        # correctness wins; pip cache amortises it across runs. Slimming the
+        # dep set (CPU-only torch) is a deferred follow-up, not part of C2.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Ruff (lint, non-blocking)
+        # Non-blocking for now: the repo has pre-existing format/import drift in
+        # ~32 legacy files (app/*, standalone Streamlit apps, some backend/*)
+        # unrelated to the CI rollout. A follow-up normalizes the baseline
+        # (black . + ruff --fix .) and flips ruff/black to blocking. Until then
+        # pytest is the merge gate. See IMPLEMENTATION_ROADMAP / CURRENT_TASKS.
+        continue-on-error: true
+        run: ruff check .
+
+      - name: Black (format check, non-blocking)
+        # Non-blocking for the same reason as Ruff above — flips to blocking once
+        # the one-time baseline normalization lands.
+        continue-on-error: true
+        run: black --check .
+
+      - name: Pytest (SQLite suite)
+        # The existing suite runs against in-memory SQLite over
+        # httpx.ASGITransport. pgvector (kb_chunks) + JSONB (audit_logs) are
+        # excluded from the SQLite schema — see the Postgres job sketch below.
+        run: pytest
+
+      - name: Mypy (type check, non-blocking)
+        # The codebase is not mypy-clean yet (see pyproject.toml); strictness is
+        # ramped per-module over later phases, so this must not block merges.
+        continue-on-error: true
+        run: mypy .
+
+      - name: pip-audit (dependency CVE scan, non-blocking)
+        # Surfaces known CVEs in pinned deps (security review M2). Non-blocking
+        # for now — a known CVE in the heavy ML stack shouldn't block unrelated
+        # merges; review the report and patch deliberately. Container image
+        # scanning (Trivy/Grype on the built image) is a heavier follow-up.
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL / DEFERRED: Postgres + pgvector integration test job.
+  #
+  # The current suite is SQLite-only and intentionally excludes the pgvector
+  # `kb_chunks` table and the JSONB `audit_logs` table, so RAG-scoping and audit
+  # assertions are NOT exercised in CI yet. When those tests land, enable a job
+  # like the sketch below to run them against a real pgvector Postgres 16
+  # service (mirroring Cloud SQL). Left commented out on purpose — enabling it
+  # before the tests exist would be a no-op cost.
+  #
+  # postgres-integration:
+  #   name: integration (Postgres + pgvector)
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: pgvector/pgvector:pg16
+  #       env:
+  #         POSTGRES_USER: postgres
+  #         POSTGRES_PASSWORD: postgres
+  #         POSTGRES_DB: acs_test
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd "pg_isready -U postgres -d acs_test"
+  #         --health-interval 5s --health-timeout 5s --health-retries 10
+  #   env:
+  #     SECRET_KEY: ci-test-secret-key-not-for-production
+  #     DATABASE_URL: postgresql://postgres:postgres@localhost:5432/acs_test
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #         cache: pip
+  #     - run: |
+  #         pip install -r requirements.txt -r requirements-dev.txt
+  #     - run: alembic upgrade head      # creates the vector extension + schema
+  #     - run: pytest -m postgres        # the deferred RAG-scoping + audit tests

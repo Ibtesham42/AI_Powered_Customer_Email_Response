@@ -1,29 +1,24 @@
-// Token persistence. The backend returns the refresh token in JSON (it does not
-// set an httpOnly cookie), so the SPA must store it client-side; localStorage is
-// the pragmatic choice until the backend supports cookie-based sessions. Access
-// + refresh tokens only — never any other secret.
+// Access-token storage (audit H1). The token lives in memory only — never in
+// localStorage — so an XSS payload can't exfiltrate a persisted credential, and
+// it is gone the moment the tab closes. The refresh token is not stored here at
+// all: it rides in an httpOnly cookie the browser sends to /api/v1/auth/* and
+// JavaScript can't read. On a fresh load the SPA silently refreshes (the cookie)
+// to mint a new in-memory access token — see AuthProvider.
 
-const ACCESS_KEY = 'acs.access_token'
-const REFRESH_KEY = 'acs.refresh_token'
+let accessToken: string | null = null
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_KEY)
+  return accessToken
 }
 
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_KEY)
+export function setAccessToken(token: string): void {
+  accessToken = token
 }
 
-export function setTokens(accessToken: string, refreshToken: string): void {
-  localStorage.setItem(ACCESS_KEY, accessToken)
-  localStorage.setItem(REFRESH_KEY, refreshToken)
+export function clearAccessToken(): void {
+  accessToken = null
 }
 
-export function clearTokens(): void {
-  localStorage.removeItem(ACCESS_KEY)
-  localStorage.removeItem(REFRESH_KEY)
-}
-
-export function hasTokens(): boolean {
-  return getAccessToken() !== null && getRefreshToken() !== null
+export function hasAccessToken(): boolean {
+  return accessToken !== null
 }

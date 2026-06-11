@@ -3,7 +3,136 @@
 Production-hardening refactor of the AI Customer Support SaaS. Newest first;
 each entry references its git commit.
 
-## Phase 6 — Frontend: Vite + React SPA (in progress) · branch `feature/phase-6-frontend`
+## Phase 7 — Production hardening (in progress) · branch `feature/phase-7-hardening`
+
+Closing the Critical + High blockers from the production-readiness audit.
+
+### Chunk 6 (C2) — deployment & runtime hardening
+Built collaboratively by the devops / backend / database / security specialist
+agents (design → parallel implement → security review → integrate).
+- **Containers**: one shared multi-stage `Dockerfile` (`python:3.12-slim`,
+  non-root `appuser`) for the `api`, `worker`, and `migrate` processes — they
+  differ only by `command` (the Cloud Run pattern). `.dockerignore` keeps the
+  committed `venv/`, `.env*`, `data/`, `frontend/`, and `tests/` out of the image.
+- **Compose** (`docker-compose.yml`): `db` (`pgvector/pgvector:pg16`), `redis`,
+  a one-shot `migrate` (`alembic upgrade head`, `restart: "no"`) that `api` and
+  `worker` gate on via `depends_on … service_completed_successfully`, plus DB
+  `pg_isready` / redis healthchecks and restart policies. Schema is applied by
+  the migrate step, never on app startup. Labelled clearly as non-production.
+- **Worker resilience** (`scripts/email_worker.py`): SIGTERM/SIGINT graceful
+  shutdown (finishes the current cycle, no mid-draft kill) and a top-level crash
+  guard with backoff so a hard failure (e.g. DB down at `SessionLocal()`)
+  self-heals instead of crashing the process.
+- **Readiness probe**: `GET /health/ready` runs a cheap engine-level `SELECT 1`
+  and returns 503 if the DB is unreachable (leaks no error detail); liveness
+  `GET /health` stays DB-free so a DB blip never restarts a healthy container.
+- **Rate limiting**: `Limiter` now uses Redis when `RATELIMIT_STORAGE_URI` /
+  `REDIS_URL` is set; **production refuses to start without it** (an in-memory
+  fallback would not hold across instances — security review H1), and dev warns.
+- **DB pool**: `backend/database.py` pool params (`DB_POOL_SIZE` /
+  `DB_MAX_OVERFLOW` / `DB_POOL_RECYCLE`) are env-tunable for Postgres only; the
+  SQLite test path is untouched. Worker runs a smaller pool (2/2).
+- **CI** (`.github/workflows/ci.yml`): GitHub Actions on push/PR — `pytest`
+  (SQLite suite) blocking; `ruff` / `black` / `mypy` / `pip-audit` non-blocking
+  (pre-existing format drift + not-yet-mypy-clean; baseline cleanup is a tracked
+  follow-up). Includes a commented Postgres+pgvector integration job for the
+  deferred RAG-scoping/audit tests.
+- **Docs**: `docs/runbooks/deployment.md` (local compose, migrate-as-deploy-step
+  + Cloud Run analogue, health/readiness→probe mapping, prod env vars, and the
+  out-of-scope hardening follow-ups). `.env.example` gains the rate-limit + DB
+  pool vars. `requirements.txt` adds `redis==5.0.8`.
+- Security review (read-only): no Critical; H1 fixed in-chunk; `/health/ready`
+  verified non-leaking; remaining items (digest-pinned images, image CVE
+  scanning, least-privilege runtime role) recorded as follow-ups.
+
+### Chunk 5 (H1) — token transport hardening
+- Refresh token now rides in an **httpOnly + Secure + SameSite** cookie scoped
+  to `/api/v1/auth` (`backend/auth/cookies.py`), keeping it off the SPA's
+  JavaScript (closes the localStorage XSS-exfiltration vector). `/refresh` +
+  `/logout` read the token **cookie-first with a body fallback** — browser
+  clients send the cookie and no body; non-browser clients (legacy Streamlit,
+  tests, future mobile) still pass `refresh_token` in the body.
+  `RefreshTokenRequest.refresh_token` is now optional.
+- SPA: access token held **in memory only** (`tokenStorage.ts` — no
+  localStorage); `client.ts` sends `credentials:'include'`, refreshes via the
+  cookie with no body, and exposes `refreshSession`; `AuthProvider` silently
+  re-bootstraps the session from the cookie on load (the in-memory token never
+  survives a reload). `logout()` drops its argument (server reads the cookie).
+- **Security-headers middleware** (`main.py`): `X-Content-Type-Options=nosniff`,
+  `X-Frame-Options=DENY`, `Referrer-Policy=no-referrer`, and
+  `Strict-Transport-Security` in production. CORS `allow_credentials=True` so the
+  cookie flows on a separate-origin deploy (explicit origins required).
+- New config: `ENVIRONMENT` (production tightens cookie-Secure + HSTS) and
+  `COOKIE_SECURE` / `COOKIE_SAMESITE` / `COOKIE_DOMAIN` / `REFRESH_COOKIE_NAME`;
+  documented in `.env.example`. Also corrected the stale
+  `ACCESS_TOKEN_EXPIRE_MINUTES=480` example to `30` (matches the H2 default).
+- `tests/test_auth.py` (+4): login sets the httpOnly cookie, cookie-only
+  refresh rotates, cookie logout revokes + expires, and security headers present;
+  the body-path rotation/logout tests now clear the jar to isolate that path.
+  **63 green.**
+
+### Chunk 4 (H2) — short access-token TTL + real revocation
+- `users.token_version` (migration `a1b2c3d4e5f6`, `server_default="1"`). The
+  access-token JWT now carries `token_version`; `get_current_user` rejects a
+  token whose version ≠ the user's current one (401). The check is free — the
+  dependency already loads the user row.
+- `auth_service.revoke_all_sessions` bumps `token_version` (kills outstanding
+  **access** tokens) **and** revokes all refresh tokens. Wired into a new
+  `POST /auth/logout-all` (sign out everywhere) and into password reset (so a
+  reset truly ends every session, access included).
+- `ACCESS_TOKEN_EXPIRE_MINUTES` default 480 → **30** (the SPA refreshes
+  transparently; the legacy Streamlit dashboard re-logs-in on expiry).
+- `tests/test_token_revocation.py` (4): logout-all invalidates the access token,
+  an out-of-band version bump revokes it, password reset revokes then re-login
+  works, and a normal refresh keeps the token valid.
+
+### Chunk 3 (H3) — mailbox encryption key: fail-fast + refuse-without-key
+- Startup self-check (`crypto.validate_at_startup`, called from `main.py`): an
+  **invalid** key always aborts startup; a **missing** key aborts only when the
+  new `MAILBOX_ENCRYPTION_REQUIRED` flag is set, else the app starts with mailbox
+  features disabled and logs a warning.
+- Mailbox features **refuse** without a usable key: `connect_mailbox` and
+  `build_connector` call `crypto.require_configured()` first (before any network
+  work / before `decrypt`); `POST /mailbox/connect` maps the failure to **503**
+  rather than storing plaintext or 500-ing.
+- `crypto.is_configured()` / `require_configured()` helpers added.
+- Runbook `docs/runbooks/mailbox-encryption-key.md`: key custody/backup,
+  recovery when lost, and an offline re-encryption **rotation** procedure (with
+  a ready-to-run script); `.env.example` documents `MAILBOX_ENCRYPTION_REQUIRED`.
+- `tests/test_mailbox_key.py`: missing / invalid / valid key + the connect route
+  returning 503 without a key (4 tests).
+
+### Chunk 2 (H4) — SSRF guard on URL knowledge-base ingestion
+- `app/rag/url_guard.py` — `validate_public_url`: allows only http/https and
+  only hosts that resolve exclusively to public IPs; rejects loopback, private,
+  link-local (incl. the `169.254.169.254` cloud-metadata endpoint), reserved,
+  multicast, unspecified, and IPv4-mapped-IPv6 equivalents (`UnsafeUrlError`).
+- `fetch_url_text` now validates before fetching and follows redirects manually
+  with `follow_redirects=False`, re-validating every hop (capped at 5) — a
+  redirect can't bounce to an internal address.
+- `POST /api/v1/data/url` validates up front and returns 400 on an unsafe URL
+  (the background fetch re-validates as defence in depth).
+- 16 tests (`tests/test_url_guard.py`): public allowed; loopback/private/
+  link-local/metadata/IPv6-loopback/unspecified rejected; non-http(s) schemes
+  rejected; and the route returns 400 for the metadata IP.
+
+### Chunk 1 (C1) — test harness + tenancy/auth safety net
+- `pytest` + `pytest-asyncio` added (`requirements-dev.txt`, `pyproject.toml`
+  `[tool.pytest.ini_options]` with `asyncio_mode=auto`). Fixes the broken
+  `TestClient` (httpx 0.28) by driving routes over `httpx.ASGITransport`.
+- `tests/conftest.py`: in-memory SQLite DB via `StaticPool`, `get_db` override,
+  async client fixture; excludes the Postgres-only `kb_chunks` (pgvector) and
+  `audit_logs` (JSONB) tables; disables the in-memory rate limiter for tests.
+- **35 tests, all passing:** state machine (transitions, valid + invalid),
+  escalation engine (rule priority/threshold/idempotency), AI confidence blend +
+  intent/confidence coercion + structured-output parse paths (valid/malformed/
+  empty), auth flow (signup/login/me/refresh-rotation/logout), and **tenant
+  isolation** (Company B gets 404/empty on A's ticket, queue, message action,
+  mailbox, and KB documents).
+- Out of scope here (need a Postgres+pgvector DB → CI in chunk 6): RAG retrieval
+  scoping and audit-log assertions.
+
+## Phase 6 — Frontend: Vite + React SPA (done) · merged to `main`
 
 ### Chunk 7 (prep) — production CORS + API base URL
 - Backend: configurable `CORS_ORIGINS` (`backend/config.py`) + `CORSMiddleware`
