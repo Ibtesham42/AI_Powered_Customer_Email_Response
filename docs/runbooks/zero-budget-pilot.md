@@ -1,141 +1,127 @@
 # Zero-Budget Pilot Deployment ($0/month, no credit card)
 
-_Plan for a validation/pilot launch with no hosting spend **and no credit
-card** (constraint added 2026-06-11 — this supersedes the earlier Oracle
-Always Free plan in this file; Oracle requires a card at signup). The Hetzner
-path in `docs/DEPLOYMENT_STRATEGY.md` remains the upgrade once ~$9/mo is
-acceptable; §5 keeps that switch a DNS-flip._
+_Living plan. History: the Oracle Always Free plan died on the no-credit-card
+constraint; the Hugging Face Spaces plan died on the mail-egress probe
+(**2026-06-11: `deploy/hf-probe` returned FAIL — imap:993 / smtp:465 / smtp:587
+all "Network unreachable" from a Space**). HF Spaces cannot host a product that
+speaks IMAP/SMTP. The `deploy/hf-space/` files are retained in case HF egress
+policy ever changes._
 
-## Why most providers are out
+## The surviving option
 
-The app needs ~**1.5–2 GB RAM per process** (api *and* worker import
-torch + the BGE embedding model) and an **always-on worker**. Combined with
-"no card":
+With $0, no card, **and** required outbound IMAP/SMTP, every container PaaS is
+out (card-required, 512 MB ceilings, or mail-port filtering). What remains:
 
-| Provider | No-card free tier? | Verdict |
+**Run the stack on your own always-on PC and publish the API through a free
+tunnel.** This machine already runs the entire pipeline natively — the live
+end-to-end test (mailbox connect, ingestion, RAG, Groq draft, real SMTP send)
+executed on it — so mail egress, RAM, and even GPU embeddings are proven, not
+hoped for.
+
+### Two tunnel choices
+
+| | **Tailscale Funnel** (default) | Cloudflare Tunnel |
 |---|---|---|
-| Oracle Always Free | ❌ card for identity | out |
-| Fly.io | ❌ card at signup | out |
-| Railway | ❌ one-time trial, then card | out |
-| Koyeb | ❌ card verification (and 512 MB anyway) | out |
-| Northflank | ❌ card verification | out |
-| Render | ✅ no card — **but** 512 MB (torch OOMs) + free services sleep + workers are paid-only | out for this codebase |
-| GCP / AWS / Azure | ❌ card | out |
-| PythonAnywhere / Replit | ✅/✅ — but tiny CPU/RAM, no Docker, no real worker | out |
-| **Hugging Face Spaces (Docker)** | ✅ **no card; free CPU Space = 2 vCPU / 16 GB RAM** | ✅ **the pick** |
-| **Own PC + Cloudflare Tunnel** | ✅ no card (but a named tunnel needs a domain, ~$10/yr) | fallback |
+| Cost / card | $0, no card (SSO signup) | $0, no card — **but needs a domain in your CF account** (~$10/yr; Porkbun accepts PayPal) |
+| Hostname | stable `https://<machine>.<tailnet>.ts.net` | your own `api.<domain>` (nicer, custom) |
+| TLS | automatic (Tailscale-issued cert) | automatic |
+| Limits | HTTPS only on port 443; fair-use throughput (fine for JSON + 10 MB KB uploads) | effectively none for this scale |
+| Cookie posture | cross-site with the SPA → `COOKIE_SAMESITE=none` | same-site possible if SPA is `app.<domain>` → keep `lax` |
 
-Neon, Cloudflare Pages, Upstash Redis, Groq free, Resend free, Sentry,
-UptimeRobot, Healthchecks.io — all usable **without a card**. ✅
+Start with **Funnel** (strictly $0, zero purchases). If you can spend ~$10/yr
+via PayPal on a domain later, switch to Cloudflare Tunnel for nicer URLs and
+`SameSite=lax` — a config change, not a redeploy.
 
 ## 1. Architecture
 
 ```
- browser ─▶ Cloudflare Pages (SPA, <project>.pages.dev or app.<domain>)   $0
-               │  cross-site → COOKIE_SAMESITE=none + COOKIE_SECURE=true
+ browser ─▶ Cloudflare Pages (SPA)                                       $0
+               │  COOKIE_SAMESITE=none + CORS (cross-site with ts.net)
                ▼
- Hugging Face Docker Space (free CPU: 2 vCPU / 16 GB / ~50 GB ephemeral)  $0
- https://<user>-<space>.hf.space  (TLS provided by HF)
- ┌────────────────────────────────────────────┐
- │ ONE container, TWO processes (start.sh):   │──▶ Neon Postgres+pgvector $0
- │   uvicorn backend.main:app  (api, :8000)   │──▶ Upstash Redis (TLS)    $0
- │   python scripts/email_worker.py (worker)  │──▶ Groq free · Resend free$0
- └────────────────────────────────────────────┘
- Monitoring: Sentry · Healthchecks.io · UptimeRobot (pings ALSO keep the
- Space awake — it sleeps after 48 h without HTTP traffic)                 $0
+ https://<machine>.<tailnet>.ts.net  (Tailscale Funnel, TLS)             $0
+               ▼
+ YOUR PC (Windows, the existing venv — no Docker needed)
+   uvicorn backend.main:app  (api, :8000)        ──▶ Neon Postgres        $0
+   python scripts/email_worker.py (worker)       ──▶ Upstash Redis (TLS)  $0
+   POLL_INTERVAL_SECONDS=600                     ──▶ Groq free · Resend   $0
+ Monitoring: Sentry · Healthchecks.io · UptimeRobot                      $0
 ```
 
-Same principle as before: **all state lives off the compute** (Neon for data,
-Upstash for counters, HF rebuilds the image from the repo). The Space's disk is
-ephemeral — uploaded raw KB files vanish on restart, but the embedded chunks
-live in pgvector, so retrieval is unaffected (re-upload only to re-ingest).
+- **State stays off the PC** (Neon + Upstash), same principle as every prior
+  plan — a crash/reinstall loses nothing but uptime.
+- Architecture unchanged: same two processes, same code, same env contract.
+  Docker isn't required (and isn't installed on this PC); the venv path is the
+  one already validated end-to-end.
+- Redis: **Upstash free** (no card) satisfies the production
+  `RATELIMIT_STORAGE_URI` fail-fast.
 
-What changes vs. the repo's compose model: the api and worker run as **two
-processes in one container** via a small `start.sh` (a deployment adaptation —
-they remain separate processes; the "never run the worker loop inside the API
-process" rule is intact). Redis moves to Upstash (`rediss://`) because a Space
-is one container. `docker-compose.prod.yml` stays the artifact for the
-VPS/Hetzner path.
+## 2. Setup sequence (Windows)
 
-The deployment files exist in **`deploy/hf-space/`** (Space Dockerfile
-mirroring the root one + `start.sh` + Space README with metadata and the full
-secrets table) — no application code changes. Deploy by publishing the
-`hf-space` branch (those files copied to the repo root) to the Space remote;
-exact commands are in `deploy/hf-space/README.md`.
+1. **Upstash**: free Redis DB → copy the `rediss://` URL.
+2. **Tailscale**: install on the PC, sign in (Google/GitHub SSO, no card).
+   Enable HTTPS certificates + Funnel for the tailnet (Admin console → DNS →
+   HTTPS, and approve the Funnel node attribute when prompted), then:
+   ```powershell
+   tailscale funnel --bg 8000
+   tailscale funnel status   # shows https://<machine>.<tailnet>.ts.net
+   ```
+3. **Production env**: copy `.env` to `.env.pilot` and set the production
+   values — fresh `SECRET_KEY`, fresh `MAILBOX_ENCRYPTION_KEY` (backed up
+   offline), `ENVIRONMENT=production`, `COOKIE_SECURE=true`,
+   `COOKIE_SAMESITE=none`, `CORS_ORIGINS=https://<project>.pages.dev`,
+   `APP_BASE_URL=https://<project>.pages.dev`, `POLL_INTERVAL_SECONDS=600`,
+   `RATELIMIT_STORAGE_URI=rediss://…upstash…`, `SENTRY_DSN`,
+   `WORKER_HEARTBEAT_URL`, Neon pooler `DATABASE_URL`, `GROQ_API_KEY`,
+   `RESEND_API_KEY`. Load it for both processes.
+4. **Run the two processes** (validated commands, from the repo root):
+   ```powershell
+   venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+   venv\Scripts\python.exe scripts\email_worker.py
+   ```
+   Funnel forwards only to localhost — the api is never exposed directly.
+5. **Keep the PC serving**: disable sleep/hibernate (`powercfg /change
+   standby-timeout-ac 0`), set Windows Update active hours, and register both
+   processes with **Task Scheduler** (run at startup, restart on failure) so a
+   reboot self-heals.
+6. **Frontend**: Cloudflare Pages, `VITE_API_BASE_URL=https://<machine>.<tailnet>.ts.net`.
+7. **Monitoring**: UptimeRobot on `…ts.net/health` + `/health/ready`;
+   Healthchecks.io heartbeat (also alerts when the PC is off); Sentry test
+   event.
+8. **Verify** (staging checklist): cross-site cookie login round-trips,
+   rate-limit 429 via Upstash, KB upload→indexed, real inbound→draft→approve→
+   send on a dedicated pilot mailbox (closes B-4).
 
-## 2. Setup sequence
+## 3. Honest limitations
 
-1. **Accounts (no card):** huggingface.co, Upstash, and (if not already)
-   Neon / Cloudflare / Groq / Resend / Sentry / Healthchecks.io / UptimeRobot.
-2. **Day-one feasibility check (do this FIRST):** deploy the ready-made probe
-   in **`deploy/hf-probe/`** (3 files, stdlib-only, builds in ~1 min) to a
-   throwaway Docker Space. It verifies **outbound IMAP (993) + SMTP (465)** to
-   Gmail and serves a JSON `PASS`/`FAIL` verdict — interpretation guide in its
-   README. HF allows general egress, but SMTP is the classic thing platforms
-   block — if FAIL, this plan is dead and the fallback (§ "own PC + tunnel")
-   applies. Everything else only matters if this passes.
-3. **Upstash Redis:** create a free database → copy the `rediss://` URL
-   (treat as a secret) → it becomes `RATELIMIT_STORAGE_URI`.
-4. **Create the real Space** (Docker SDK, private repo or mirror of this one
-   with the Space files). Set **Space secrets** (HF's env-var store): the same
-   production set as ever — `SECRET_KEY`, `DATABASE_URL` (Neon pooler),
-   `MAILBOX_ENCRYPTION_KEY` (backed up offline), `MAILBOX_ENCRYPTION_REQUIRED=true`,
-   `ENVIRONMENT=production`, `COOKIE_SECURE=true`, **`COOKIE_SAMESITE=none`**,
-   `CORS_ORIGINS=https://<spa-origin>`, `APP_BASE_URL=https://<spa-origin>`,
-   `POLL_INTERVAL_SECONDS=600`, `RATELIMIT_STORAGE_URI` (Upstash),
-   `GROQ_API_KEY`, `RESEND_API_KEY`, `SENTRY_DSN`, `WORKER_HEARTBEAT_URL`.
-5. **Frontend:** Cloudflare Pages from the GitHub repo
-   (`frontend/`, `npm ci && npm run build`, `dist/`,
-   `VITE_API_BASE_URL=https://<user>-<space>.hf.space`).
-6. **Keep-alive + monitoring:** UptimeRobot on `https://…hf.space/health` and
-   `/health/ready` every 5 min (doubles as the anti-sleep ping);
-   Healthchecks.io check wired to `WORKER_HEARTBEAT_URL`; Sentry DSN set.
-7. **Verify** with the staging checklist: cookie login (cross-site — confirm
-   the `SameSite=None; Secure` cookie round-trips), rate-limit 429 (Upstash),
-   KB upload → indexed, and the real inbound→draft→approve→send roundtrip on a
-   dedicated pilot mailbox (B-4).
+- **Your PC's uptime is the SLA.** Power cut, reboot, Windows Update, or
+  closing the lid = pilot down. Healthchecks.io tells you within ~15 min.
+  Set the pilot company's expectations accordingly (it's a pilot).
+- Residential upload bandwidth bounds responsiveness (JSON API — fine).
+- The `ts.net` URL looks technical; acceptable for one friendly pilot user,
+  not for marketing. The domain+CF-Tunnel upgrade fixes optics for ~$10/yr.
+- Don't run dev experiments on the same DB while the pilot is live — the
+  pilot uses its own Neon project/branch and its own `.env.pilot`.
+- Electricity ≈ a few $/month of household cost — no provider invoices.
 
-## 3. Compromises vs. the paid plans
+## 4. Rejected alternatives (kept for the record)
 
-| Compromise | Impact |
-|---|---|
-| Two processes in one container | None functionally; restart restarts both. |
-| `hf.space` subdomain (no custom domain on free Spaces) | Cross-site cookies → `SameSite=none` (supported in config); the API URL looks like a demo, not a product — acceptable for a pilot. |
-| 48-h inactivity sleep | Neutralised by UptimeRobot pings; a sleep+cold start would take minutes (image pull + torch import). |
-| Ephemeral disk | Raw KB files lost on restart (chunks safe in Neon); re-upload to re-ingest. |
-| No SLA; HF may restart/rebuild Spaces | Worker resumes via the queue (`awaiting_ai` rows persist); minutes of downtime possible at random. |
-| ToS greyness | Free Spaces are meant primarily for ML demos/apps; a low-traffic AI-support pilot is ML-adjacent but not a classic demo. Risk: HF asks you to upgrade/move. Mitigation: low traffic, honest naming, be ready to move (state is off-box). |
-| SMTP/IMAP egress unverified | **Hard gate** — checked in step 2 before any other work. |
-| `POLL_INTERVAL_SECONDS=600` | Unchanged from the previous plan (Neon free compute-hours); ≤10-min email pickup. |
-| Groq free tier | ~500–1,000 drafts/day ceiling, queue absorbs bursts (unchanged). |
+- **GitHub Actions as the worker** ("scheduled cron worker"): ❌. Actions
+  can't host the always-on API at all; scheduled crons have 5-min minimum +
+  unreliable (often 15–60 min) timing; each run cold-pulls the multi-GB ML
+  stack, so ~48 runs/day ≈ 10,000+ runner-minutes/month (the private-repo free
+  tier is 2,000); and using Actions as a production compute platform —
+  polling customers' mailboxes with stored credentials through CI runners —
+  is against GitHub's Acceptable Use terms. Not salvageable.
+- **Render free (no card)**: 512 MB OOMs on torch; background workers are
+  paid-only; mail egress unverified anyway.
+- **Modal/serverless-Python free credits**: torch cold-starts measured in
+  minutes per invocation, always-on worker burns past the credit, off-label.
+- **Kaggle/Colab as servers**: ToS violation, ephemeral, no.
 
-## 4. Expected limits (unchanged from the Oracle plan)
+## 5. Upgrade path
 
-~**5–15 companies**, ~**500–1,000 drafts/day** (Groq free), ~**100 MB KB text**
-total (Neon 0.5 GB), Resend 100/day (resets only). Compute is ample
-(16 GB RAM); the binding constraints are Neon compute-hours (hence the 600 s
-poll) and Groq's free-tier rate limits.
-
-## Fallback: own PC + Cloudflare Tunnel
-
-If HF blocks mail egress (step 2 fails) or the Space proves too flaky: run the
-stack on your own always-on PC — natively in the venv (as the live e2e test
-already did) or via compose — and publish it with **Cloudflare Tunnel** (free,
-no card, no port-forwarding, hides your IP). Honest catch: a *stable named*
-tunnel hostname requires a domain in your Cloudflare account (~$10/yr — money,
-but not monthly and not a card-on-file subscription… it does need a payment
-method, e.g. PayPal works on some registrars). Without any domain, tunnel URLs
-are ephemeral — unusable for a pilot. Other tradeoffs: your PC's uptime is the
-SLA, residential bandwidth, electricity.
-
-## 5. Migration path (HF Space → Hetzner, when budget exists)
-
-Identical in spirit to before — **no data migrates**:
-1. Provision the VPS, copy `.env`, `docker compose -f docker-compose.prod.yml
-   up -d --build` (the compose path was built for exactly this).
-2. Point the SPA's `VITE_API_BASE_URL` at the new `api.<domain>` (one Pages
-   env change + rebuild), set `COOKIE_SAMESITE=lax` (same-site again),
-   update `CORS_ORIGINS`/`APP_BASE_URL`.
-3. Re-point UptimeRobot/Healthchecks; pause the Space.
-Effort ≈ an hour; Neon/Upstash/Groq/Resend/Sentry unchanged (drop Upstash for
-on-box redis if you prefer).
+Unchanged in spirit: when ~$9/mo exists → Hetzner + `docker-compose.prod.yml`
+(`docs/DEPLOYMENT_STRATEGY.md`), flip `VITE_API_BASE_URL` + cookie/CORS env,
+re-point monitors. Nothing migrates (state is in Neon/Upstash). The interim
+$10/yr domain step (CF Tunnel) already moves the URLs to `api.<domain>`, making
+the eventual Hetzner switch invisible to the pilot user.
