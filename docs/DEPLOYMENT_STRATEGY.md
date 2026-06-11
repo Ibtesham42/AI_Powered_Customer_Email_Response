@@ -69,6 +69,10 @@ added for TLS.
 
 ## 3. Free-tier-only option ($0/mo + domain)
 
+> **Now the active pilot plan** — full architecture, setup guide, limits, and
+> the migration path back to Hetzner live in
+> `docs/runbooks/zero-budget-pilot.md` (budget constraint, 2026-06-11).
+
 **Oracle Cloud Always Free** is the only free compute that fits the RAM floor:
 4 ARM Ampere cores + 24 GB RAM, free forever. Run the whole compose stack on it;
 Neon free for DB; Cloudflare Pages; Upstash Redis free (or compose redis); free
@@ -83,8 +87,9 @@ closely; I would not bet paying customers' mailboxes on it.
 **Neon free-tier nuance:** the 10 s worker poll keeps compute awake 24/7. At the
 0.25 CU minimum that's ≈ 186 compute-hours/month vs the 191.9 free allowance —
 it *just* fits, with zero headroom for the api's own queries at busier moments.
-Expect to need Launch ($19/mo) soon after real traffic starts, or lengthen
-`POLL_INTERVAL_SECONDS` (config change, e.g. 30–60 s) to create headroom.
+Expect to need Launch ($19/mo) soon after real traffic starts, or set the
+env-tunable `POLL_INTERVAL_SECONDS=600` so Neon autosuspends between cycles
+(see `runbooks/zero-budget-pilot.md` §4).
 
 ## 4. Lowest-cost production-ready option (recommended)
 

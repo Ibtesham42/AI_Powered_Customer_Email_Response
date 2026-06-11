@@ -8,6 +8,14 @@ each entry references its git commit.
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
 
+### Follow-up — env-tunable worker poll interval (zero-budget pilot prereq)
+- `POLL_INTERVAL_SECONDS` env var (default 10, unchanged behaviour). The Neon
+  free-tier deploy sets 600 so the database autosuspends between cycles and
+  stays inside the 191.9 free CU-hours/month; email pickup latency equals the
+  interval. Documented in `.env.example`, `docs/runbooks/zero-budget-pilot.md`
+  (the $0 pilot plan: Oracle Always Free ARM + Neon/CF Pages free tiers) and
+  `docs/DEPLOYMENT_STRATEGY.md`. +1 test (**80 green**).
+
 ### Chunk 4 — production compose + Caddy/TLS
 - `docker-compose.prod.yml` (standalone, not an overlay — compose can't remove
   the local `db` service): `caddy` (TLS, **only** published ports 80/443) →

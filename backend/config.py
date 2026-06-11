@@ -77,6 +77,15 @@ class Settings:
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # --- Worker ---
+    # Seconds between worker cycles (mailbox poll + AI queue drain). Default 10
+    # for snappy dev/standard deploys. On the Neon FREE tier set ~600: at 10s
+    # the constant polling keeps the database compute awake 24/7 (~186 of the
+    # 191.9 free CU-hours/month); at 10-minute polling Neon autosuspends
+    # between cycles, leaving real headroom (see
+    # docs/runbooks/zero-budget-pilot.md). Email pickup latency == this value.
+    POLL_INTERVAL_SECONDS: int = int(os.getenv("POLL_INTERVAL_SECONDS", "10"))
+
     # --- Monitoring (pilot blocker B-3) ---
     # Sentry error tracking — optional; unset disables it (see
     # backend/monitoring.py). One DSN serves both processes, tagged api/worker.

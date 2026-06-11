@@ -37,6 +37,14 @@ def test_sentry_initialises_when_available(monkeypatch):
     assert calls["tag:process"] == "worker"
 
 
+def test_worker_poll_interval_comes_from_settings():
+    """The cycle cadence is env-tunable (Neon free tier runs at 600s)."""
+    import scripts.email_worker as worker
+
+    assert worker.POLL_INTERVAL_SECONDS == settings.POLL_INTERVAL_SECONDS
+    assert settings.POLL_INTERVAL_SECONDS == 10  # default preserved
+
+
 def test_heartbeat_noop_without_url(monkeypatch):
     import scripts.email_worker as worker
 

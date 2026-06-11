@@ -43,7 +43,9 @@ from backend.services import (  # noqa: E402
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
 
-POLL_INTERVAL_SECONDS = 10
+# Env-tunable (POLL_INTERVAL_SECONDS, default 10) — the Neon-free-tier deploy
+# runs at 600 so the database can autosuspend between cycles; see config.py.
+POLL_INTERVAL_SECONDS = settings.POLL_INTERVAL_SECONDS
 
 # Most AI drafts to generate in one worker cycle, so a backlog cannot starve
 # mailbox polling.
