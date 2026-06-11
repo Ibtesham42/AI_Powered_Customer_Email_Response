@@ -8,6 +8,24 @@ each entry references its git commit.
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
 
+### Chunk 2 (B-5) — send idempotency + retry safety
+- New transient `ReviewStatus.SENDING` (string column — no migration): the send
+  route claims the Message with an **atomic compare-and-set**
+  (`UPDATE … WHERE review_status='reviewed'`), so exactly one request can send.
+  Duplicate clicks, concurrent requests, and re-sends of a SENT message get
+  **409** instead of double-emailing the Customer.
+- **SMTP failure releases the claim** (SENDING → REVIEWED) and returns **502**
+  with the draft back in review — the agent's retry is safe because nothing was
+  delivered. Deliberately **no automatic retry**: an ambiguous SMTP timeout may
+  have delivered, and a duplicate customer email is worse than a manual retry.
+- All request validation (ticket/customer/mailbox/reply text) happens *before*
+  the claim, so a bad request can never strand a Message in SENDING. A crash
+  between SMTP success and the DB commit leaves a visible `sending` state for a
+  human to resolve (no silent auto-resend).
+- State machine: REVIEWED→SENDING, SENDING→{SENT, REVIEWED}.
+- `tests/test_send_idempotency.py` (5): single delivery, duplicate 409,
+  concurrent-claim 409, failure-then-safe-retry, unreviewed 409. **74 green.**
+
 ### Chunk 1 (B-3) — monitoring: Sentry + worker heartbeat
 - `backend/monitoring.py`: optional Sentry init, called by both processes
   (`main.py` tags `process=api`, the worker `process=worker`). DSN-gated

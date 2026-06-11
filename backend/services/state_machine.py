@@ -35,7 +35,12 @@ REVIEW_TRANSITIONS: dict[str, set[str]] = {
     ReviewStatus.REVIEWED: {
         ReviewStatus.DRAFTED,
         ReviewStatus.REVIEWED,  # re-edit an already-reviewed draft
+        ReviewStatus.SENDING,  # claimed by a send request (idempotency guard)
         ReviewStatus.SENT,
+    },
+    ReviewStatus.SENDING: {
+        ReviewStatus.SENT,  # SMTP succeeded
+        ReviewStatus.REVIEWED,  # SMTP failed — back to review for a safe retry
     },
     ReviewStatus.SENT: set(),
     ReviewStatus.NOT_APPLICABLE: set(),
@@ -46,9 +51,7 @@ def _check(
     transitions: dict[str, set[str]], current: str, new: str, label: str
 ) -> None:
     if new not in transitions.get(current, set()):
-        raise InvalidTransitionError(
-            f"Invalid {label} transition: {current} -> {new}"
-        )
+        raise InvalidTransitionError(f"Invalid {label} transition: {current} -> {new}")
 
 
 def assert_ticket_transition(current: str, new: str) -> None:
