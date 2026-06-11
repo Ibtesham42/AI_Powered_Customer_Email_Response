@@ -77,6 +77,15 @@ class Settings:
     # --- Logging ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # --- Rate limiting (slowapi) ---
+    # Storage backend for request rate limits. Unset => in-memory (per-process),
+    # which is wrong once more than one instance runs (each gets its own
+    # counters). A multi-instance deploy (Cloud Run, multiple workers) must point
+    # this at shared Redis. REDIS_URL is accepted as a convenient alias.
+    RATELIMIT_STORAGE_URI: str | None = os.getenv("RATELIMIT_STORAGE_URI") or os.getenv(
+        "REDIS_URL"
+    )
+
     # --- Mailbox credential encryption ---
     # Fernet key used to encrypt stored mailbox App Passwords (see ADR-0002).
     # Optional at startup so the app still runs without mailbox features; the

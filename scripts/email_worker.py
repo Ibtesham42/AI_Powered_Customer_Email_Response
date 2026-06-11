@@ -8,6 +8,7 @@ row. One mailbox failing never stops the others.
 """
 
 import os
+import signal
 import sys
 import time
 
@@ -45,6 +46,30 @@ POLL_INTERVAL_SECONDS = 10
 # Most AI drafts to generate in one worker cycle, so a backlog cannot starve
 # mailbox polling.
 MAX_DRAFTS_PER_CYCLE = 25
+
+# Backoff after an *unexpected* top-level failure (e.g. the DB is completely
+# down at SessionLocal() time). Short enough to recover quickly, long enough not
+# to hot-loop while the dependency is unavailable.
+CRASH_BACKOFF_SECONDS = 5
+
+# Set by the SIGTERM/SIGINT handlers so the main loop can finish its current
+# cycle and exit cleanly — `docker stop` / Cloud Run shutdown sends SIGTERM and
+# we don't want to be killed mid-draft.
+_shutdown = False
+
+
+def _request_shutdown(signum, _frame) -> None:
+    """Signal handler: ask the main loop to stop after the current cycle."""
+    global _shutdown
+    _shutdown = True
+    logger.info("Received signal %s — shutting down after current cycle", signum)
+
+
+def _interruptible_sleep(seconds: float) -> None:
+    """Sleep in short slices so a shutdown request is noticed promptly."""
+    deadline = time.monotonic() + seconds
+    while not _shutdown and time.monotonic() < deadline:
+        time.sleep(min(1.0, deadline - time.monotonic()))
 
 
 def _ingest_email(db, company_id: int, e: dict) -> None:
@@ -186,23 +211,52 @@ def process_queue() -> None:
         db.close()
 
 
+def _run_cycle() -> None:
+    """One poll-then-drain cycle. Per-step failures are already contained by the
+    inner try/excepts in poll_mailboxes / process_queue."""
+    db = SessionLocal()
+    try:
+        poll_mailboxes(db)
+    except Exception:
+        logger.exception("Mailbox polling failed")
+    finally:
+        db.close()
+
+    try:
+        process_queue()
+    except Exception:
+        logger.exception("Queue processing failed")
+
+
 def run() -> None:
-    logger.info("AI worker started (poll every %ss)", POLL_INTERVAL_SECONDS)
-    while True:
-        db = SessionLocal()
-        try:
-            poll_mailboxes(db)
-        except Exception:
-            logger.exception("Mailbox polling failed")
-        finally:
-            db.close()
+    # Install handlers so a container stop (SIGTERM) or Ctrl-C (SIGINT) lets the
+    # worker finish its current cycle and exit cleanly rather than dying mid-draft.
+    signal.signal(signal.SIGTERM, _request_shutdown)
+    signal.signal(signal.SIGINT, _request_shutdown)
 
+    logger.info(
+        "AI worker started (poll every %ss, max %s drafts/cycle)",
+        POLL_INTERVAL_SECONDS,
+        MAX_DRAFTS_PER_CYCLE,
+    )
+    while not _shutdown:
+        # Top-level crash guard: anything the per-step handlers didn't catch
+        # (e.g. SessionLocal() raising because the DB is fully down) is logged
+        # and we back off instead of crashing the process. With
+        # restart: unless-stopped this self-heals without relying on the
+        # orchestrator's restart loop.
         try:
-            process_queue()
+            _run_cycle()
         except Exception:
-            logger.exception("Queue processing failed")
+            logger.exception(
+                "Worker cycle failed — backing off %ss", CRASH_BACKOFF_SECONDS
+            )
+            _interruptible_sleep(CRASH_BACKOFF_SECONDS)
+            continue
 
-        time.sleep(POLL_INTERVAL_SECONDS)
+        _interruptible_sleep(POLL_INTERVAL_SECONDS)
+
+    logger.info("AI worker stopped cleanly")
 
 
 if __name__ == "__main__":

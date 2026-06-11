@@ -1,0 +1,46 @@
+# Keep the build context small and free of secrets / local cruft.
+
+# Python virtualenv (committed in this repo) — must never enter an image.
+venv/
+.venv/
+
+# VCS + CI metadata
+.git/
+.gitignore
+.github/
+
+# Python caches / bytecode
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local data: per-company knowledge bases, uploads, SQLite DBs — not for images.
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend (built/served separately; node_modules is huge)
+frontend/
+
+# Notebooks / exploratory work
+notebook/
+
+# Secrets and env files — config is injected at runtime, never baked in.
+# (.env.example is excluded too; it is not needed inside the image.)
+.env
+.env.*
+
+# Tests run in CI outside the image; no need to ship them.
+tests/
+
+# Docker / editor artefacts
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.md
+.vscode/
+.idea/

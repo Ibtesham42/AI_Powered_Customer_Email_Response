@@ -7,6 +7,44 @@ each entry references its git commit.
 
 Closing the Critical + High blockers from the production-readiness audit.
 
+### Chunk 6 (C2) — deployment & runtime hardening
+Built collaboratively by the devops / backend / database / security specialist
+agents (design → parallel implement → security review → integrate).
+- **Containers**: one shared multi-stage `Dockerfile` (`python:3.12-slim`,
+  non-root `appuser`) for the `api`, `worker`, and `migrate` processes — they
+  differ only by `command` (the Cloud Run pattern). `.dockerignore` keeps the
+  committed `venv/`, `.env*`, `data/`, `frontend/`, and `tests/` out of the image.
+- **Compose** (`docker-compose.yml`): `db` (`pgvector/pgvector:pg16`), `redis`,
+  a one-shot `migrate` (`alembic upgrade head`, `restart: "no"`) that `api` and
+  `worker` gate on via `depends_on … service_completed_successfully`, plus DB
+  `pg_isready` / redis healthchecks and restart policies. Schema is applied by
+  the migrate step, never on app startup. Labelled clearly as non-production.
+- **Worker resilience** (`scripts/email_worker.py`): SIGTERM/SIGINT graceful
+  shutdown (finishes the current cycle, no mid-draft kill) and a top-level crash
+  guard with backoff so a hard failure (e.g. DB down at `SessionLocal()`)
+  self-heals instead of crashing the process.
+- **Readiness probe**: `GET /health/ready` runs a cheap engine-level `SELECT 1`
+  and returns 503 if the DB is unreachable (leaks no error detail); liveness
+  `GET /health` stays DB-free so a DB blip never restarts a healthy container.
+- **Rate limiting**: `Limiter` now uses Redis when `RATELIMIT_STORAGE_URI` /
+  `REDIS_URL` is set; **production refuses to start without it** (an in-memory
+  fallback would not hold across instances — security review H1), and dev warns.
+- **DB pool**: `backend/database.py` pool params (`DB_POOL_SIZE` /
+  `DB_MAX_OVERFLOW` / `DB_POOL_RECYCLE`) are env-tunable for Postgres only; the
+  SQLite test path is untouched. Worker runs a smaller pool (2/2).
+- **CI** (`.github/workflows/ci.yml`): GitHub Actions on push/PR — `pytest`
+  (SQLite suite) blocking; `ruff` / `black` / `mypy` / `pip-audit` non-blocking
+  (pre-existing format drift + not-yet-mypy-clean; baseline cleanup is a tracked
+  follow-up). Includes a commented Postgres+pgvector integration job for the
+  deferred RAG-scoping/audit tests.
+- **Docs**: `docs/runbooks/deployment.md` (local compose, migrate-as-deploy-step
+  + Cloud Run analogue, health/readiness→probe mapping, prod env vars, and the
+  out-of-scope hardening follow-ups). `.env.example` gains the rate-limit + DB
+  pool vars. `requirements.txt` adds `redis==5.0.8`.
+- Security review (read-only): no Critical; H1 fixed in-chunk; `/health/ready`
+  verified non-leaking; remaining items (digest-pinned images, image CVE
+  scanning, least-privilege runtime role) recorded as follow-ups.
+
 ### Chunk 5 (H1) — token transport hardening
 - Refresh token now rides in an **httpOnly + Secure + SameSite** cookie scoped
   to `/api/v1/auth` (`backend/auth/cookies.py`), keeping it off the SPA's

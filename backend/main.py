@@ -1,11 +1,13 @@
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from backend import crypto
 from backend.config import settings
+from backend.database import engine
 from backend.logging_config import configure_logging, get_logger
 from backend.rate_limit import limiter
 from backend.routes import (
@@ -63,6 +65,7 @@ async def security_headers(request: Request, call_next):
         )
     return response
 
+
 # Rate limiting (slowapi).
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -97,4 +100,22 @@ def read_root():
 
 @app.get("/health")
 def health_check():
+    """Liveness probe: the process is up. Deliberately does no DB work so an
+    orchestrator never restarts a healthy app just because the DB blipped."""
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def readiness_check():
+    """Readiness probe: the app can serve traffic (the DB is reachable).
+
+    A short-lived, engine-level connection — not the per-request get_db
+    generator — keeps the check cheap and independent of request handling. Only
+    ``SELECT 1``: migrations are a deploy-time gate, not a runtime condition.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database not ready") from exc
+    return {"status": "ready"}

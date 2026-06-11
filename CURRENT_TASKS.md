@@ -1,13 +1,15 @@
 # Current Tasks
 
-Active checkpoint: **Phase 7 — production hardening, chunks 1–5 (C1, H4, H3, H2,
-H1) done**; chunk 6 (C2) next. On `feature/phase-7-hardening`; Phases 0–6 merged
-to `main`. Closing the Critical + High blockers from the production-readiness
-audit. Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
+Active checkpoint: **Phase 7 — production hardening COMPLETE (all six chunks:
+C1, H4, H3, H2, H1, C2)**. On `feature/phase-7-hardening`; Phases 0–6 merged to
+`main`. All Critical + High production-readiness blockers closed — **awaiting
+merge to `main`** (per workflow, merge only on explicit OK).
+Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
 History: `CHANGELOG.md`.
 
-Test status: **63 tests green** (`pytest`). RAG-scoping + audit assertions
-deferred to the Postgres CI run (chunk 6).
+Test status: **63 tests green** (`pytest`). RAG-scoping + audit assertions still
+deferred (the suite is SQLite-only; the C2 CI has a commented Postgres+pgvector
+job sketch ready for when those tests are written).
 **Migration pending apply:** `a1b2c3d4e5f6` (users.token_version) — run
 `alembic upgrade head` on deploy (couldn't run here; Neon DNS down).
 
@@ -29,12 +31,19 @@ deferred to the Postgres CI run (chunk 6).
    body fallback for non-browser clients); SPA access token in memory, silent
    cookie refresh on load; security-headers middleware + HSTS-in-prod; CORS
    credentials on. New `ENVIRONMENT`/`COOKIE_*` config. +4 tests. **(High)**
-6. ☐ C2 — deployment & runtime: Docker + compose, worker auto-restart, Redis
-   rate-limit, DB readiness probe, CI (lint+types+pytest w/ Postgres). **(High)**
+6. ☑ C2 — deployment & runtime: shared non-root Dockerfile (api/worker/migrate),
+   docker-compose (pgvector pg16 + redis + one-shot migrate gating app +
+   healthchecks/restart), worker SIGTERM + crash backoff, `/health/ready` DB
+   probe, Redis rate-limit (prod fail-fast), env-tunable DB pool, GitHub Actions
+   CI (pytest blocking; ruff/black/mypy/pip-audit non-blocking),
+   `docs/runbooks/deployment.md`. Built via devops/backend/database/security
+   specialist agents. **(High)**
 
 Deferred (not in this plan): Phase 6 cut-over (retire Streamlit after a live
-E2E test) and all audit Medium/Low items (idempotency, send retry, KB caps,
-signup enumeration, audit gaps, pagination, etc.).
+E2E test); the C2 hardening follow-ups (digest-pinned base images, image CVE
+scanning, image slimming, lint/format baseline cleanup → flip ruff/black to
+blocking — see `docs/runbooks/deployment.md`); and all audit Medium/Low items
+(idempotency, send retry, KB caps, signup enumeration, audit gaps, pagination).
 
 ## Phase 6 — done (merged to `main`)
 Vite + React SPA at feature parity: scaffold, auth (typed client + refresh-on-401),

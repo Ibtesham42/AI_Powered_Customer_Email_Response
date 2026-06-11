@@ -145,7 +145,24 @@ managed Postgres.
   escalation, AI confidence/parse, auth flow (incl. cookie transport), tenant
   isolation, token revocation, SSRF guard, mailbox key. Run: `pytest`.
 - The SQLite schema excludes `kb_chunks` (pgvector) and `audit_logs` (JSONB);
-  RAG-scoping + audit assertions need the Postgres-backed CI run (chunk 6).
+  RAG-scoping + audit assertions need the Postgres-backed CI run (a commented
+  job sketch exists in `.github/workflows/ci.yml`; tests not yet written).
+- CI (`.github/workflows/ci.yml`, Phase 7 C2): GitHub Actions on push/PR runs
+  `pytest` (blocking) + `ruff`/`black`/`mypy`/`pip-audit` (non-blocking).
+
+## Deployment (Phase 7 chunk C2)
+
+- One shared non-root multi-stage `Dockerfile` (py3.12) runs `api`, `worker`,
+  and `migrate` (differ only by `command`). `docker compose up --build` brings
+  up `db` (pgvector pg16) + `redis` + one-shot `migrate` (`alembic upgrade head`)
+  + `api` + `worker`; migrations are a deploy step, never on app startup.
+- Probes: `GET /health` (liveness, DB-free) and `GET /health/ready` (`SELECT 1`,
+  503 if DB down). Worker handles SIGTERM gracefully + self-heals on crash.
+- Rate limiting uses Redis (`RATELIMIT_STORAGE_URI`); the app refuses to start in
+  production without it. DB pool is env-tunable (`DB_POOL_SIZE` etc.).
+- Target: Cloud Run + Cloud SQL. Runbook: `docs/runbooks/deployment.md`
+  (includes the out-of-scope hardening follow-ups: digest-pinned images, image
+  CVE scanning, image slimming, lint/format baseline → blocking).
 
 ## Active technical debt
 

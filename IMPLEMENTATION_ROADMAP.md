@@ -167,10 +167,11 @@ the backend via Vite's proxy (no CORS in dev).
   `frontend/README.md`. Retiring `dashboard_app.py` is deferred to a live
   end-to-end test (login → queue → review → send) against a real DB.
 
-## Phase 7 — Production hardening  ◐ IN PROGRESS
+## Phase 7 — Production hardening  ☑ COMPLETE (on `feature/phase-7-hardening`)
 *Goal: close the Critical + High blockers from the production-readiness audit so
 a real company can run this. Ordered by risk-reduction ÷ effort. Medium/Low
-audit items are deliberately out of scope for now.*
+audit items are deliberately out of scope for now. All six chunks (C1, H4, H3,
+H2, H1, C2) done; awaiting merge to `main`.*
 
 - ☑ Chunk 1 (C1) — test harness + tenancy/auth/state-machine safety net. Fixed
   the broken `TestClient` (httpx 0.28 → `ASGITransport`). `pytest` +
@@ -199,10 +200,17 @@ audit items are deliberately out of scope for now.*
   Security-headers middleware (nosniff / frame-DENY / referrer-policy / HSTS in
   prod) + CORS `allow_credentials=True`. New `ENVIRONMENT` + `COOKIE_*` config.
   63 tests (+4: cookie login/refresh/logout, headers). *(High)*
-- ☐ Chunk 6 (C2) — deployment & runtime hardening: Dockerfiles + compose
-  (api/worker/postgres), worker auto-restart, Redis-backed rate limiting,
-  DB-checking readiness probe, CI (lint + types + pytest w/ Postgres+pgvector).
-  *(High)*
+- ☑ Chunk 6 (C2) — deployment & runtime hardening. One shared multi-stage,
+  non-root `Dockerfile` (py3.12) for api/worker/migrate; `docker-compose.yml`
+  (pgvector pg16 + redis + one-shot `migrate` gating api/worker via
+  `service_completed_successfully` + healthchecks/restart policies);
+  `.dockerignore`. Worker resilience (SIGTERM graceful shutdown + top-level
+  crash backoff). `GET /health/ready` DB-readiness probe (liveness `/health`
+  stays DB-free). Redis-backed rate limiting (`RATELIMIT_STORAGE_URI`), **fail-
+  fast in prod** if unset. Env-tunable DB pool. GitHub Actions CI (pytest
+  blocking; ruff/black/mypy/pip-audit non-blocking) + a deferred Postgres+
+  pgvector job sketch. `docs/runbooks/deployment.md`. Built by the
+  devops/backend/database/security specialist agents. *(High)*
 
 ## Cross-cutting (folded into Phase 7 above)
 
