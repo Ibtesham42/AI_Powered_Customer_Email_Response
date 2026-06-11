@@ -8,6 +8,20 @@ each entry references its git commit.
 Closing the pilot-deployment blockers from `docs/LAUNCH_READINESS.md` /
 `docs/DEPLOYMENT_STRATEGY.md`. No new features.
 
+### Chunk 4 — production compose + Caddy/TLS
+- `docker-compose.prod.yml` (standalone, not an overlay — compose can't remove
+  the local `db` service): `caddy` (TLS, **only** published ports 80/443) →
+  internal `api` + `worker` + `redis` + one-shot `migrate`, database on managed
+  Postgres (Neon) via the server's `.env`. Worker pool right-sized (2/2);
+  api/worker gate on `migrate` success; everything `restart: unless-stopped`.
+- `Caddyfile`: automatic Let's Encrypt for `${API_DOMAIN}`, certs persisted in
+  the `caddy_data` volume; 64 MB request-body cap for KB uploads. App-level
+  security headers (HSTS in prod) not duplicated in the proxy.
+- `.env.example` gains `API_DOMAIN`; both files excluded from the image build
+  context. YAML + structure validated (no `db`, api unpublished, caddy 80/443);
+  a real `docker compose config` + boot happens on the server (no local Docker).
+- Runbook: "Production stack on a VPS" section in `docs/runbooks/deployment.md`.
+
 ### Chunk 3 (B-6) — knowledge-base ingestion limits
 - **File-size cap** (`KB_MAX_FILE_MB`, default 10): uploads stream to disk in
   1 MB chunks and abort with **413** past the cap (partial file removed) —

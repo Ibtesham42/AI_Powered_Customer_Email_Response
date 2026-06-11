@@ -1,0 +1,96 @@
+# Production / staging stack for a single VPS (see docs/DEPLOYMENT_STRATEGY.md
+# and docs/runbooks/staging-deployment.md).
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Differences from the local docker-compose.yml:
+#   - NO `db` service: the database is managed Postgres (Neon) — DATABASE_URL
+#     in the server's .env points at the Neon pooler endpoint.
+#   - `caddy` terminates TLS for ${API_DOMAIN} (automatic Let's Encrypt) and is
+#     the ONLY published port (80/443). The api is internal-only.
+#   - Expects a hardened host: .env chmod 600, ufw allowing 80/443/22 only.
+#
+# Required in .env (see .env.example): SECRET_KEY, DATABASE_URL (Neon),
+# MAILBOX_ENCRYPTION_KEY (+ MAILBOX_ENCRYPTION_REQUIRED=true),
+# ENVIRONMENT=production, COOKIE_SECURE=true, CORS_ORIGINS, APP_BASE_URL,
+# GROQ_API_KEY, RESEND_API_KEY, SENTRY_DSN, WORKER_HEARTBEAT_URL —
+# plus API_DOMAIN (e.g. api.example.com) for Caddy.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env (e.g. api.example.com)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # Let's Encrypt certificates persist here
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  redis:
+    # Backs the API rate limiter; internal-only (no published port).
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    # One-shot schema migration against the managed DB. Runs to completion and
+    # exits; api/worker gate on its success. Never migrate on app startup.
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    restart: "no"
+
+  api:
+    build: .
+    command:
+      ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: .env
+    environment:
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    # No `ports`: only Caddy is reachable from outside.
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Liveness — static, no DB (readiness is /health/ready, probed externally).
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["python", "scripts/email_worker.py"]
+    env_file: .env
+    environment:
+      # Single low-concurrency loop — small pool (see DB sizing notes).
+      DB_POOL_SIZE: "2"
+      DB_MAX_OVERFLOW: "2"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,15 +1,17 @@
 # Current Tasks
 
-Active checkpoint: **Phase 7 — production hardening COMPLETE (all six chunks:
-C1, H4, H3, H2, H1, C2)**. On `feature/phase-7-hardening`; Phases 0–6 merged to
-`main`. All Critical + High production-readiness blockers closed — **awaiting
-merge to `main`** (per workflow, merge only on explicit OK).
+Active checkpoint: **Phase 8 — pilot readiness, all 4 chunks done** on
+`feature/phase-8-pilot-readiness` (awaiting merge OK). Phases 0–7 merged to
+`main`; CI fully green (lint-test + docker-build). Pilot blockers closed in
+code: monitoring (B-3), send idempotency (B-5), KB limits (B-6), prod compose +
+Caddy/TLS. Remaining before pilot: provision infra per
+`docs/DEPLOYMENT_STRATEGY.md` (VPS + Neon + Cloudflare Pages), create
+Sentry/Healthchecks/UptimeRobot accounts, real inbound roundtrip (B-4).
 Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
 History: `CHANGELOG.md`.
 
-Test status: **63 tests green** (`pytest`). RAG-scoping + audit assertions still
-deferred (the suite is SQLite-only; the C2 CI has a commented Postgres+pgvector
-job sketch ready for when those tests are written).
+Test status: **79 tests green** (`pytest`). RAG-scoping + audit assertions still
+deferred (SQLite-only suite; commented Postgres+pgvector CI job sketch ready).
 **Migration pending apply:** `a1b2c3d4e5f6` (users.token_version) — run
 `alembic upgrade head` on deploy (couldn't run here; Neon DNS down).
 

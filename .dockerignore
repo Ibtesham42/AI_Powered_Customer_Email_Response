@@ -41,6 +41,8 @@ tests/
 Dockerfile
 .dockerignore
 docker-compose.yml
+docker-compose.prod.yml
+Caddyfile
 *.md
 .vscode/
 .idea/
