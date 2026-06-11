@@ -1,21 +1,42 @@
 # Launch-Readiness Report
 
 _AI Customer Support SaaS — assessed 2026-06-11, after Phase 7 (production
-hardening) merged to `main` and a live end-to-end workflow test._
+hardening) merged to `main` and a live end-to-end workflow test.
+**Updated 2026-06-11 (later same day):** Docker build validated in CI; full CI
+pipeline green._
 
 ## TL;DR verdict
 
-**Not yet ready for general availability to real companies — but code-complete
-and functionally proven.** Every application-layer blocker from the
-production-readiness audit (Critical + High) is closed, and the full
-customer-support workflow was verified live (Neon Postgres + pgvector, real Groq,
-real Gmail IMAP/SMTP). What remains is **operational**: the container image has
-never actually been built/run, no production environment exists yet, and there is
-no error monitoring/alerting. Those are deployment tasks, not code defects.
+**Ready for staging deployment and a single-company pilot; not yet ready for
+general availability.** Every application-layer blocker from the
+production-readiness audit (Critical + High) is closed, the full customer-support
+workflow was verified live (Neon Postgres + pgvector, real Groq, real Gmail
+IMAP/SMTP), and the container build path is now **validated by CI on every
+push** (image builds on Linux; the app imports cleanly inside it; pytest suite
+green on a clean-install runner). What remains is **operational**: no staging/
+production environment is provisioned yet, and there is no error
+monitoring/alerting. Those are deployment tasks, not code defects.
 
-**Recommendation: proceed to a staged rollout** — deploy to staging, complete the
-punch-list below, run a single-company pilot, then open to more companies. Do not
-do a wide GA launch until the "Remaining blockers" are cleared.
+**Recommendation: execute the staging plan now**
+(`docs/runbooks/staging-deployment.md`) — stand up staging, wire monitoring, run
+the pilot-readiness checklist, then a single friendly-company pilot. Open to
+more companies only after the pilot survives 1–2 weeks of real traffic.
+
+### CI validation outcome (2026-06-11)
+
+- **Docker build: VALIDATED.** The `docker-build` job builds `./Dockerfile` on
+  `ubuntu-latest` on every push/PR and fails CI if the image can't build. First
+  green run: `27325158511`. All three no-infra smokes pass, including the heavy
+  `import backend.main` (proves the torch/sentence-transformers wheels load in
+  the clean Linux image).
+- **Test suite on a clean runner: VALIDATED.** The CI pytest failure was
+  diagnosed (the repo's `backend`/`app` packages are not pip-installed; bare
+  `pytest` doesn't put the repo root on `sys.path` the way `python -m pytest`
+  does) and fixed properly via `pythonpath = ["."]` in `pyproject.toml` plus
+  `ENV PYTHONPATH=/app` in the Dockerfile so every container entrypoint imports
+  consistently. `lint + test (SQLite)` green from run `27334053401` (63 tests).
+- Test-critical deps are now pinned (`httpx`, `pytest`, `pytest-asyncio`, etc.)
+  so a clean CI install reproduces the local environment.
 
 ---
 
@@ -25,8 +46,8 @@ Ranked by what would actually bite a real customer.
 
 | # | Blocker | Severity | Status / action |
 |---|---------|----------|-----------------|
-| B-1 | **Container image never built or run.** The `Dockerfile`/`docker-compose.yml` were only statically validated (Docker isn't installed on the dev box). The ML stack (torch + sentence-transformers) makes this multi-GB and is the most likely place a real build breaks. | **High** | Build the image, run `docker compose up`, smoke-test `/health`, `/health/ready`, one auth + one draft, before any deploy. |
-| B-2 | **No production environment provisioned.** No Cloud Run/Cloud SQL, no managed Redis, no domain/TLS, no Secret Manager wiring. | **High** | Execute §2 deployment steps. |
+| B-1 | **Container image never built or run.** | ~~High~~ | **✅ RESOLVED (2026-06-11).** CI `docker-build` job builds the image on `ubuntu-latest` on every push/PR and runs no-infra smokes (config import, alembic wiring, full `import backend.main` incl. the ML stack). Fails the workflow on any build break. Residual (folded into staging): the image hasn't yet been *run as a long-lived service* against real infra — the staging deploy is that test. |
+| B-2 | **No staging/production environment provisioned.** No Cloud Run/Cloud SQL, no managed Redis, no domain/TLS, no Secret Manager wiring. | **High** | Execute `docs/runbooks/staging-deployment.md` (plan is written; not yet implemented). |
 | B-3 | **No error monitoring / alerting.** Structured logs and health probes exist, but there is no Sentry-style error tracking or alerting — you'd be operating blind. | **High** (for a real SaaS) | Wire error tracking + uptime/error-rate alerts before pilot (see §5). |
 | B-4 | **Inbound email roundtrip unverified end-to-end.** The live test injected the inbound email as synthetic data; `poll_mailboxes` fetches *all unread* mail and marks it read, so it must not run against a shared/personal inbox. | **Medium** | Verify a real inbound→draft roundtrip on a **dedicated** throwaway support mailbox before pilot. |
 | B-5 | **Send is not idempotent; no send-retry/failure path.** A double `POST /send` or an SMTP hiccup mid-send has no guard/retry (deferred audit Medium item). For real customer mail this risks duplicate or lost replies. | **Medium** | Add send idempotency + retry before scaling beyond a pilot. |
@@ -37,7 +58,8 @@ Ranked by what would actually bite a real customer.
 **Already resolved this cycle:** mailbox encryption key configured; pending
 migration `a1b2c3d4e5f6` (`token_version`) applied to Neon; refresh-token cookie +
 in-memory access token; Redis rate-limit prod fail-fast; SSRF guard; mailbox-key
-fail-fast.
+fail-fast; **B-1 container build validated in CI**; **CI pytest failure root-caused
+(sys.path/package discovery, not deps) and fixed** — full pipeline green.
 
 ---
 
@@ -173,6 +195,15 @@ All on the live stack (Neon + Groq + Gmail), 2026-06-11:
   (intent=refund_request, confidence 80) → review queue → edit → real SMTP send →
   audit (5 actions). Credential stored encrypted (Fernet), not plaintext.
 
-**Not yet verified:** container build/run, docker-compose stack, GitHub Actions CI
-run result, managed Redis rate-limiting in prod, separate-origin cookie flow, real
-inbound IMAP roundtrip, behaviour under load.
+Verified later the same day, in CI on Linux runners:
+
+- **Docker image build** (multi-stage, non-root, full ML stack) + no-infra
+  runtime smokes — green, enforced on every push/PR.
+- **pytest suite (63 tests) on a clean-install runner** — green after the
+  package-discovery fix (`pythonpath` in pyproject + `PYTHONPATH=/app` in the
+  image).
+
+**Not yet verified:** the image *running as a service* (docker-compose stack /
+Cloud Run), managed Redis rate-limiting in prod, separate-origin cookie flow,
+real inbound IMAP roundtrip, behaviour under load. All are exercised by the
+staging plan (`docs/runbooks/staging-deployment.md`).
