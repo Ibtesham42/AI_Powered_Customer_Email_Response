@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { getReviewQueue } from '../api/tickets'
+import { getReviewQueue, listTickets } from '../api/tickets'
 import { ConfidenceBadge, IntentBadge } from '../components/Badge'
 import { ApiError } from '../lib/client'
-import type { QueueItem } from '../lib/types'
+import type { QueueItem, TicketSummary } from '../lib/types'
 
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; items: QueueItem[] }
+  | { status: 'ready'; items: QueueItem[]; escalated: TicketSummary[] }
 
 function QueueCard({ item }: { item: QueueItem }) {
   return (
@@ -55,15 +55,42 @@ function QueueCard({ item }: { item: QueueItem }) {
   )
 }
 
+function EscalatedCard({ ticket }: { ticket: TicketSummary }) {
+  return (
+    <Link
+      to={`/tickets/${ticket.id}`}
+      className="block rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:border-amber-400 hover:shadow"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-sm font-semibold text-slate-900">
+          {ticket.subject?.trim() || '(no subject)'}
+        </p>
+        <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-900">
+          {ticket.escalation_reason ?? 'escalated'}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        Ticket #{ticket.id} · {ticket.status} — open to review the draft and
+        reply manually.
+      </p>
+    </Link>
+  )
+}
+
 export default function ReviewQueuePage() {
   const [state, setState] = useState<State>({ status: 'loading' })
 
   const load = useCallback(() => {
     let cancelled = false
     setState({ status: 'loading' })
-    getReviewQueue()
-      .then((items) => {
-        if (!cancelled) setState({ status: 'ready', items })
+    Promise.all([getReviewQueue(), listTickets()])
+      .then(([items, tickets]) => {
+        if (cancelled) return
+        setState({
+          status: 'ready',
+          items,
+          escalated: tickets.filter((t) => t.escalated),
+        })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -118,7 +145,9 @@ export default function ReviewQueuePage() {
             The queue is empty
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            New drafts appear here as the worker processes inbound email.
+            {state.escalated.length > 0
+              ? 'No drafts are awaiting quick review — but there are escalated tickets below that need human attention.'
+              : 'New drafts appear here as the worker processes inbound email.'}
           </p>
         </div>
       )}
@@ -128,6 +157,24 @@ export default function ReviewQueuePage() {
           {state.items.map((item) => (
             <QueueCard key={item.id} item={item} />
           ))}
+        </div>
+      )}
+
+      {state.status === 'ready' && state.escalated.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-base font-semibold text-slate-900">
+            Escalated — needs human attention ({state.escalated.length})
+          </h3>
+          <p className="mb-3 text-sm text-slate-500">
+            These Tickets were flagged by the AI (low confidence, complaints,
+            or needs-human) and are excluded from the quick-review queue. Open
+            one to read the thread, edit its draft, and reply.
+          </p>
+          <div className="space-y-3">
+            {state.escalated.map((ticket) => (
+              <EscalatedCard key={ticket.id} ticket={ticket} />
+            ))}
+          </div>
         </div>
       )}
     </section>
