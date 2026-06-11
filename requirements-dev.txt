@@ -1,7 +1,12 @@
 # Development tooling. Install with:
 #   pip install -r requirements-dev.txt
-ruff
-black
-mypy
-pytest
-pytest-asyncio
+#
+# Pinned to the versions the suite passes on locally so a clean CI install is
+# reproducible. Unpinned, CI resolved newer pytest/pytest-asyncio and the
+# `pytest` step failed while the committed venv stayed green; pinning aligns the
+# two. Bump deliberately.
+ruff==0.15.13
+black==26.5.1
+mypy==2.1.0
+pytest==9.0.3
+pytest-asyncio==1.4.0
