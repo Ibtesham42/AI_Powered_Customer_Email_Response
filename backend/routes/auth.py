@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
+from backend.auth.cookies import (
+    clear_refresh_cookie,
+    read_refresh_token,
+    set_refresh_cookie,
+)
 from backend.auth.dependencies import get_current_user
 from backend.auth.hashing import hash_password, verify_password
 from backend.auth.jwt_handler import create_access_token
@@ -29,8 +34,15 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-def _issue_tokens(db: Session, user: User, request: Request) -> dict:
-    """Build an access token and a stored refresh token for a user."""
+def _issue_tokens(
+    db: Session, user: User, request: Request, response: Response
+) -> dict:
+    """Build an access token and a stored refresh token for a user.
+
+    The refresh token is set as an httpOnly cookie (audit H1) *and* returned in
+    the body — browser clients (the SPA) use only the cookie and ignore the body
+    value; non-browser clients (legacy Streamlit, tests) read the body.
+    """
     access_token = create_access_token(
         {
             "user_id": user.id,
@@ -47,6 +59,7 @@ def _issue_tokens(db: Session, user: User, request: Request) -> dict:
         user_agent=request.headers.get("user-agent"),
         ip_address=request.client.host if request.client else None,
     )
+    set_refresh_cookie(response, refresh_token)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -107,7 +120,12 @@ def signup(payload: SignupRequest, request: Request, db: Session = Depends(get_d
 
 @router.post("/login")
 @limiter.limit("10/minute")
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.email == payload.email).first()
 
     # One generic message for both cases — no account enumeration.
@@ -124,7 +142,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         )
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    tokens = _issue_tokens(db, user, request)
+    tokens = _issue_tokens(db, user, request, response)
     audit_service.record(
         db,
         action="login",
@@ -140,11 +158,14 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 @router.post("/refresh")
 def refresh(
-    payload: RefreshTokenRequest,
     request: Request,
+    response: Response,
+    payload: RefreshTokenRequest | None = Body(None),
     db: Session = Depends(get_db),
 ):
-    row = get_active_refresh_token(db, payload.refresh_token)
+    # Cookie first (browser SPA), body fallback (non-browser clients).
+    token = read_refresh_token(request, payload.refresh_token if payload else None)
+    row = get_active_refresh_token(db, token) if token else None
     if row is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -152,19 +173,21 @@ def refresh(
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    # Rotate: revoke the presented token and issue a fresh pair.
+    # Rotate: revoke the presented token and issue a fresh pair (+ new cookie).
     revoke_refresh_token(db, row)
-    return _issue_tokens(db, user, request)
+    return _issue_tokens(db, user, request, response)
 
 
 @router.post("/logout")
 def logout(
-    payload: RefreshTokenRequest,
     request: Request,
+    response: Response,
+    payload: RefreshTokenRequest | None = Body(None),
     db: Session = Depends(get_db),
 ):
     # Idempotent — always succeeds, whether or not the token was valid.
-    row = get_active_refresh_token(db, payload.refresh_token)
+    token = read_refresh_token(request, payload.refresh_token if payload else None)
+    row = get_active_refresh_token(db, token) if token else None
     if row is not None:
         revoke_refresh_token(db, row)
         # Audit only a real session ending; an invalid token is a no-op.
@@ -178,6 +201,8 @@ def logout(
             entity_type="user",
             entity_id=row.user_id,
         )
+    # Always clear the browser's cookie, even on an already-invalid token.
+    clear_refresh_cookie(response)
     return {"message": "Logged out"}
 
 

@@ -7,6 +7,32 @@ each entry references its git commit.
 
 Closing the Critical + High blockers from the production-readiness audit.
 
+### Chunk 5 (H1) — token transport hardening
+- Refresh token now rides in an **httpOnly + Secure + SameSite** cookie scoped
+  to `/api/v1/auth` (`backend/auth/cookies.py`), keeping it off the SPA's
+  JavaScript (closes the localStorage XSS-exfiltration vector). `/refresh` +
+  `/logout` read the token **cookie-first with a body fallback** — browser
+  clients send the cookie and no body; non-browser clients (legacy Streamlit,
+  tests, future mobile) still pass `refresh_token` in the body.
+  `RefreshTokenRequest.refresh_token` is now optional.
+- SPA: access token held **in memory only** (`tokenStorage.ts` — no
+  localStorage); `client.ts` sends `credentials:'include'`, refreshes via the
+  cookie with no body, and exposes `refreshSession`; `AuthProvider` silently
+  re-bootstraps the session from the cookie on load (the in-memory token never
+  survives a reload). `logout()` drops its argument (server reads the cookie).
+- **Security-headers middleware** (`main.py`): `X-Content-Type-Options=nosniff`,
+  `X-Frame-Options=DENY`, `Referrer-Policy=no-referrer`, and
+  `Strict-Transport-Security` in production. CORS `allow_credentials=True` so the
+  cookie flows on a separate-origin deploy (explicit origins required).
+- New config: `ENVIRONMENT` (production tightens cookie-Secure + HSTS) and
+  `COOKIE_SECURE` / `COOKIE_SAMESITE` / `COOKIE_DOMAIN` / `REFRESH_COOKIE_NAME`;
+  documented in `.env.example`. Also corrected the stale
+  `ACCESS_TOKEN_EXPIRE_MINUTES=480` example to `30` (matches the H2 default).
+- `tests/test_auth.py` (+4): login sets the httpOnly cookie, cookie-only
+  refresh rotates, cookie logout revokes + expires, and security headers present;
+  the body-path rotation/logout tests now clear the jar to isolate that path.
+  **63 green.**
+
 ### Chunk 4 (H2) — short access-token TTL + real revocation
 - `users.token_version` (migration `a1b2c3d4e5f6`, `server_default="1"`). The
   access-token JWT now carries `token_version`; `get_current_user` rejects a

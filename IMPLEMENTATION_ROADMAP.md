@@ -190,9 +190,15 @@ audit items are deliberately out of scope for now.*
   via a per-user `token_version` claim (`get_current_user` rejects stale
   versions); `POST /auth/logout-all` + password reset bump it. Migration
   `a1b2c3d4e5f6`. 4 tests. *(Medium)*
-- ☐ Chunk 5 (H1) — token transport hardening: refresh token → httpOnly+Secure+
-  SameSite cookie (off localStorage), access token in memory, security headers,
-  HTTPS-in-prod. Backend + SPA. *(High)*
+- ☑ Chunk 5 (H1) — token transport hardening. Refresh token now rides in an
+  httpOnly+Secure+SameSite cookie scoped to `/api/v1/auth` (`backend/auth/
+  cookies.py`); `/refresh` + `/logout` read cookie-first with a body fallback
+  for non-browser clients (legacy Streamlit, tests). SPA holds the access token
+  in memory only (`tokenStorage.ts`), refreshes via the cookie
+  (`credentials:'include'`), and silently re-bootstraps the session on load.
+  Security-headers middleware (nosniff / frame-DENY / referrer-policy / HSTS in
+  prod) + CORS `allow_credentials=True`. New `ENVIRONMENT` + `COOKIE_*` config.
+  63 tests (+4: cookie login/refresh/logout, headers). *(High)*
 - ☐ Chunk 6 (C2) — deployment & runtime hardening: Dockerfiles + compose
   (api/worker/postgres), worker auto-restart, Redis-backed rate limiting,
   DB-checking readiness probe, CI (lint + types + pytest w/ Postgres+pgvector).

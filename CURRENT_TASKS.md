@@ -1,12 +1,12 @@
 # Current Tasks
 
-Active checkpoint: **Phase 7 — production hardening, chunks 1–4 (C1, H4, H3, H2)
-done**; chunk 5 (H1) next. On `feature/phase-7-hardening`; Phases 0–6 merged to
-`main`. Closing the Critical + High blockers from the production-readiness audit.
-Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
+Active checkpoint: **Phase 7 — production hardening, chunks 1–5 (C1, H4, H3, H2,
+H1) done**; chunk 6 (C2) next. On `feature/phase-7-hardening`; Phases 0–6 merged
+to `main`. Closing the Critical + High blockers from the production-readiness
+audit. Context: `PROJECT_STATE.md` · Plan: `IMPLEMENTATION_ROADMAP.md` ·
 History: `CHANGELOG.md`.
 
-Test status: **59 tests green** (`pytest`). RAG-scoping + audit assertions
+Test status: **63 tests green** (`pytest`). RAG-scoping + audit assertions
 deferred to the Postgres CI run (chunk 6).
 **Migration pending apply:** `a1b2c3d4e5f6` (users.token_version) — run
 `alembic upgrade head` on deploy (couldn't run here; Neon DNS down).
@@ -24,8 +24,11 @@ deferred to the Postgres CI run (chunk 6).
 4. ☑ H2 — short access-token TTL (30 min) + revocation via per-user
    `token_version` claim; `POST /auth/logout-all`; reset bumps it. Migration
    `a1b2c3d4e5f6`. 4 tests. **(Medium)**
-5. ☐ H1 — token transport hardening: refresh token → httpOnly cookie, access
-   in memory, security headers, HTTPS-in-prod (backend + SPA). **(High)**
+5. ☑ H1 — token transport hardening: refresh token → httpOnly+Secure+SameSite
+   cookie scoped to `/api/v1/auth` (`backend/auth/cookies.py`; cookie-first,
+   body fallback for non-browser clients); SPA access token in memory, silent
+   cookie refresh on load; security-headers middleware + HSTS-in-prod; CORS
+   credentials on. New `ENVIRONMENT`/`COOKIE_*` config. +4 tests. **(High)**
 6. ☐ C2 — deployment & runtime: Docker + compose, worker auto-restart, Redis
    rate-limit, DB readiness probe, CI (lint+types+pytest w/ Postgres). **(High)**
 

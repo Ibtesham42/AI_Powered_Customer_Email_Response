@@ -22,12 +22,10 @@ export function signup(payload: SignupRequest): Promise<SignupResponse> {
   return api.post<SignupResponse>('/auth/signup', payload, false)
 }
 
-export function logout(refreshToken: string): Promise<MessageResponse> {
-  return api.post<MessageResponse>(
-    '/auth/logout',
-    { refresh_token: refreshToken },
-    false,
-  )
+export function logout(): Promise<MessageResponse> {
+  // No body — the server revokes the refresh token from the httpOnly cookie and
+  // clears it (audit H1).
+  return api.post<MessageResponse>('/auth/logout', undefined, false)
 }
 
 export function forgotPassword(

@@ -132,12 +132,18 @@ managed Postgres.
   native PG enums) — see `backend/models/enums.py`.
 - Access token short (30 min) with `token_version`-based revocation (H2); the
   React SPA refreshes transparently, legacy Streamlit re-logs-in on expiry.
+- Refresh token in an httpOnly+Secure+SameSite cookie scoped to `/api/v1/auth`
+  (H1); `/refresh` + `/logout` read cookie-first with a body fallback for
+  non-browser clients. SPA holds the access token in memory only and silently
+  re-bootstraps from the cookie on load. Security headers + HSTS-in-prod;
+  `ENVIRONMENT` / `COOKIE_*` config.
 
 ## Testing
 
-- `pytest` suite in `tests/` (Phase 7 chunk 1): runs against in-memory SQLite,
-  drives routes over `httpx.ASGITransport`. **35 tests** — state machine,
-  escalation, AI confidence/parse, auth flow, tenant isolation. Run: `pytest`.
+- `pytest` suite in `tests/` (Phase 7 chunks 1–5): runs against in-memory SQLite,
+  drives routes over `httpx.ASGITransport`. **63 tests** — state machine,
+  escalation, AI confidence/parse, auth flow (incl. cookie transport), tenant
+  isolation, token revocation, SSRF guard, mailbox key. Run: `pytest`.
 - The SQLite schema excludes `kb_chunks` (pgvector) and `audit_logs` (JSONB);
   RAG-scoping + audit assertions need the Postgres-backed CI run (chunk 6).
 

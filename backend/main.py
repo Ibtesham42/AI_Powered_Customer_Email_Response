@@ -32,15 +32,36 @@ app = FastAPI(
 )
 
 # CORS for the Vite + React SPA (ADR-0004). Dev uses the Vite proxy (same
-# origin); these origins matter for a separate-origin production deploy. The SPA
-# authenticates with bearer tokens, so credentials are not needed.
+# origin); these origins matter for a separate-origin production deploy.
+# Credentials are enabled so the httpOnly refresh cookie (audit H1) is sent on a
+# separate-origin deploy — which requires explicit origins, never "*".
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Baseline security response headers (audit H1).
+
+    Conservative on purpose so Swagger UI at /docs keeps working (no global
+    Content-Security-Policy that would block its inline scripts). HSTS is only
+    sent in production, where the app is served over HTTPS.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if settings.is_production:
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=63072000; includeSubDomains",
+        )
+    return response
 
 # Rate limiting (slowapi).
 app.state.limiter = limiter
