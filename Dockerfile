@@ -38,7 +38,12 @@ FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    # `backend`/`app` are top-level packages, not pip-installed. Put the app
+    # root on the path so every entrypoint imports them consistently — the api's
+    # `uvicorn backend.main:app` console script does NOT add the CWD on its own
+    # (the worker and alembic env.py self-inject, but uvicorn does not).
+    PYTHONPATH=/app
 
 # Non-root runtime user — never run the app as root.
 RUN useradd --create-home --uid 10001 appuser

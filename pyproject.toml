@@ -33,3 +33,8 @@ exclude = ["venv", "alembic", "notebook"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-q"
+# `backend`/`app` are top-level packages that are NOT pip-installed, so they
+# only import when the repo root is on sys.path. `python -m pytest` adds the CWD
+# implicitly; bare `pytest` (used in CI) does not, which broke `import backend`
+# in tests/conftest.py. Adding the repo root here makes both invocations work.
+pythonpath = ["."]
